@@ -1,0 +1,8 @@
+[
+  {
+    "id": "local",
+    "name": "Local",
+    "brokers": ["kafka:9093"]
+  }
+ 
+]

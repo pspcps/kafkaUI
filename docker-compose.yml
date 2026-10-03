@@ -1,0 +1,120 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kafbat-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kafbat}
+      POSTGRES_USER: ${POSTGRES_USER:-kafbat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - kafbat-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kafbat} -d ${POSTGRES_DB:-kafbat}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Bundled Kafka — opt-in. Run with:
+  #   docker compose --profile local up
+  # Skip this service when pointing at MSK / Azure Event Hubs / Confluent / self-managed.
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: kafbat-kafka
+    profiles: ["local"]
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9094
+      KAFKA_LISTENERS: PLAINTEXT://:9092,INTERNAL://:9093,CONTROLLER://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${K8S_WORKER_HOST:-192.168.65.254}:9092,INTERNAL://kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - kafbat-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kafbat-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+      - "8090:8080"
+    environment:
+      PORT: 8080
+      GIN_MODE: release
+      MGMT_DB_DSN: "postgres://${POSTGRES_USER:-kafbat}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-kafbat}?sslmode=disable"
+      K8S_WORKER_HOST: ${K8S_WORKER_HOST:-192.168.65.254}
+      K8S_WORKER_DB_DSN: "postgres://${POSTGRES_USER:-kafbat}:${POSTGRES_PASSWORD}@${K8S_WORKER_HOST:-192.168.65.254}:5433/${POSTGRES_DB:-kafbat}?sslmode=disable"
+      K8S_WORKER_API_URL: "http://${K8S_WORKER_HOST:-192.168.65.254}:8090"
+      K8S_NAMESPACE: ${K8S_NAMESPACE:-kafbat}
+      WORKER_IMAGE: ${WORKER_IMAGE:-kafbat-worker:latest}
+      K8S_SERVER_URL: "https://kubernetes.docker.internal:6443"
+    volumes:
+      - ~/.kube:/root/.kube:ro
+    networks:
+      - kafbat-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kafbat-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+    networks:
+      - kafbat-net
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:7.0
+    container_name: kafbat-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-kafbat}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD must be set in .env}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-kafbat}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - kafbat-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  kafbat-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  kafka_data:
+  mongo_data:
