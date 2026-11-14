@@ -23,7 +23,11 @@ const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
-  ...(process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ? { adapter: async (config) => (await import('./demo')).demoAdapter(config) } : {}),
+  ...(process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+    ? {
+        adapter: async (config) => (await import('./demo')).demoAdapter(config),
+      }
+    : {}),
 })
 
 api.interceptors.request.use((config) => {
@@ -45,7 +49,7 @@ api.interceptors.response.use(
     }
     const message = err.response?.data?.message || err.message || 'Unknown error'
     return Promise.reject(new Error(message))
-  }
+  },
 )
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -57,7 +61,10 @@ export type LoginResponse = {
 }
 
 export const login = async (username: string, password: string): Promise<LoginResponse> => {
-  const { data } = await api.post<LoginResponse>('/auth/login', { username, password })
+  const { data } = await api.post<LoginResponse>('/auth/login', {
+    username,
+    password,
+  })
   return data
 }
 
@@ -84,7 +91,10 @@ export const fetchCluster = async (clusterId: string): Promise<ClusterInfo> => {
 
 // ── Topics ────────────────────────────────────────────────────────────────────
 
-export const fetchTopics = async (clusterId: string, includeInternal = false): Promise<TopicSummary[]> => {
+export const fetchTopics = async (
+  clusterId: string,
+  includeInternal = false,
+): Promise<TopicSummary[]> => {
   const { data } = await api.get<TopicSummary[]>(`${clusterBase(clusterId)}/topics`, {
     params: { includeInternal },
   })
@@ -93,7 +103,7 @@ export const fetchTopics = async (clusterId: string, includeInternal = false): P
 
 export const fetchTopic = async (clusterId: string, name: string): Promise<TopicDetail> => {
   const { data } = await api.get<TopicDetail>(
-    `${clusterBase(clusterId)}/topics/${encodeURIComponent(name)}`
+    `${clusterBase(clusterId)}/topics/${encodeURIComponent(name)}`,
   )
   return data
 }
@@ -126,11 +136,11 @@ export interface FetchMessagesParams {
 export const fetchMessages = async (
   clusterId: string,
   topic: string,
-  params: FetchMessagesParams = {}
+  params: FetchMessagesParams = {},
 ): Promise<MessagesResponse> => {
   const { data } = await api.get<MessagesResponse>(
     `${clusterBase(clusterId)}/topics/${encodeURIComponent(topic)}/messages`,
-    { params }
+    { params },
   )
   return data
 }
@@ -138,29 +148,26 @@ export const fetchMessages = async (
 export const produceMessage = async (
   clusterId: string,
   topic: string,
-  req: ProduceMessageRequest
+  req: ProduceMessageRequest,
 ): Promise<void> => {
-  await api.post(
-    `${clusterBase(clusterId)}/topics/${encodeURIComponent(topic)}/messages`,
-    req
-  )
+  await api.post(`${clusterBase(clusterId)}/topics/${encodeURIComponent(topic)}/messages`, req)
 }
 
 // ── Consumer Groups ───────────────────────────────────────────────────────────
 
 export const fetchConsumerGroups = async (clusterId: string): Promise<ConsumerGroupSummary[]> => {
   const { data } = await api.get<ConsumerGroupSummary[]>(
-    `${clusterBase(clusterId)}/consumer-groups`
+    `${clusterBase(clusterId)}/consumer-groups`,
   )
   return data
 }
 
 export const fetchConsumerGroup = async (
   clusterId: string,
-  id: string
+  id: string,
 ): Promise<ConsumerGroupDetail> => {
   const { data } = await api.get<ConsumerGroupDetail>(
-    `${clusterBase(clusterId)}/consumer-groups/${encodeURIComponent(id)}`
+    `${clusterBase(clusterId)}/consumer-groups/${encodeURIComponent(id)}`,
   )
   return data
 }
@@ -169,7 +176,7 @@ export const fetchConsumerGroup = async (
 
 export const fetchSchema = async (clusterId: string, topicName: string): Promise<TopicSchema> => {
   const { data } = await api.get<TopicSchema>(
-    `${clusterBase(clusterId)}/topics/${encodeURIComponent(topicName)}/schema`
+    `${clusterBase(clusterId)}/topics/${encodeURIComponent(topicName)}/schema`,
   )
   return data
 }
@@ -183,7 +190,7 @@ export const saveSchema = async (
 ): Promise<TopicSchema> => {
   const { data } = await api.put<TopicSchema>(
     `${clusterBase(clusterId)}/topics/${encodeURIComponent(topicName)}/schema`,
-    { schemaType, fields, avroRaw }
+    { schemaType, fields, avroRaw },
   )
   return data
 }
@@ -196,7 +203,7 @@ export const saveTypedSchema = async (
 ): Promise<TopicSchema> => {
   const { data } = await api.put<TopicSchema>(
     `${clusterBase(clusterId)}/topics/${encodeURIComponent(topicName)}/schema`,
-    { schemaFormat: format, schemaText: text }
+    { schemaFormat: format, schemaText: text },
   )
   return data
 }
@@ -235,7 +242,12 @@ export const fetchJob = async (id: string): Promise<ReplicationJob> => {
   return data
 }
 
-export const createJob = async (payload: Omit<ReplicationJob, 'id' | 'status' | 'k8sDeploymentName' | 'k8sNamespace' | 'createdAt' | 'updatedAt' | 'metrics'>): Promise<ReplicationJob> => {
+export const createJob = async (
+  payload: Omit<
+    ReplicationJob,
+    'id' | 'status' | 'k8sDeploymentName' | 'k8sNamespace' | 'createdAt' | 'updatedAt' | 'metrics'
+  >,
+): Promise<ReplicationJob> => {
   const { data } = await api.post<ReplicationJob>('/jobs', payload)
   return data
 }
@@ -270,7 +282,10 @@ export const updateJobDestination = async (
   destinationType: string,
   destinationConfig: import('@/types').DestinationConfig,
 ): Promise<void> => {
-  await api.put(`/jobs/${id}/destination`, { destinationType, destinationConfig })
+  await api.put(`/jobs/${id}/destination`, {
+    destinationType,
+    destinationConfig,
+  })
 }
 
 export const fetchJobErrors = async (id: string): Promise<JobError[]> => {
@@ -303,12 +318,32 @@ export const fetchLiveMetrics = async (id: string): Promise<LiveMetricsResponse>
   return data
 }
 
-export const scaleJobReplicas = async (id: string, replicas: number): Promise<{ replicas: number; applied: boolean }> => {
+export const scaleJobReplicas = async (
+  id: string,
+  replicas: number,
+): Promise<{ replicas: number; applied: boolean }> => {
   const { data } = await api.put(`/jobs/${id}/replicas`, { replicas })
   return data
 }
 
 export const fetchJobLogs = async (id: string, lines = 200): Promise<string> => {
-  const { data } = await api.get<{ logs: string }>(`/jobs/${id}/logs`, { params: { lines } })
+  const { data } = await api.get<{ logs: string }>(`/jobs/${id}/logs`, {
+    params: { lines },
+  })
   return data.logs
+}
+
+export const fetchTopicConsumers = async (
+  clusterId: string,
+  topic: string,
+): Promise<import('@/types').TopicConsumerGroup[]> => {
+  const { data } = await api.get(
+    `${clusterBase(clusterId)}/topics/${encodeURIComponent(topic)}/consumer-groups`,
+  )
+  return data
+}
+
+export const fetchConnections = async (): Promise<import('@/types').ConnectionProfile[]> => {
+  const { data } = await api.get('/connections')
+  return data
 }

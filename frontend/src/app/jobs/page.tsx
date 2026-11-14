@@ -3,8 +3,15 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  fetchJobs, pauseJob, resumeJob, deleteJob,
-  fetchJobErrors, resetJobOffset, fetchLiveMetrics, fetchJobLogs, scaleJobReplicas,
+  fetchJobs,
+  pauseJob,
+  resumeJob,
+  deleteJob,
+  fetchJobErrors,
+  resetJobOffset,
+  fetchLiveMetrics,
+  fetchJobLogs,
+  scaleJobReplicas,
 } from '@/lib/api'
 import type { LiveMetric, LiveConsumerMember } from '@/lib/api'
 import type { ReplicationJob, JobStatus } from '@/types'
@@ -14,24 +21,35 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { CreateJobModal } from '@/components/jobs/CreateJobModal'
 import {
-  Plus, Play, Pause, Trash2, X, Database, Activity, Clock,
-  AlertTriangle, RotateCcw, RefreshCw, Terminal,
-  Info, ChevronRight,
+  Plus,
+  Play,
+  Pause,
+  Trash2,
+  X,
+  Database,
+  Activity,
+  Clock,
+  AlertTriangle,
+  RotateCcw,
+  RefreshCw,
+  Terminal,
+  Info,
+  ChevronRight,
 } from 'lucide-react'
 
 type DrawerTab = 'details' | 'logs' | 'reset'
 
 const STATUS_VARIANT: Record<JobStatus, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
   running: 'success',
-  paused:  'warning',
+  paused: 'warning',
   pending: 'info',
-  failed:  'danger',
+  failed: 'danger',
   stopped: 'default',
 }
 
 function fmtLag(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
-  if (n >= 1_000)     return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'k'
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'k'
   return String(n)
 }
 
@@ -53,12 +71,16 @@ function LagBadge({ jobId }: { jobId: string }) {
 
   const lag = data.partitions.reduce((s, m) => s + m.lag, 0)
   const color =
-    lag === 0        ? 'bg-green-100 text-green-700 ring-green-200' :
-    lag < 1_000      ? 'bg-yellow-100 text-yellow-700 ring-yellow-200' :
-                       'bg-red-100 text-red-700 ring-red-200'
+    lag === 0
+      ? 'bg-green-100 text-green-700 ring-green-200'
+      : lag < 1_000
+        ? 'bg-yellow-100 text-yellow-700 ring-yellow-200'
+        : 'bg-red-100 text-red-700 ring-red-200'
 
   return (
-    <span className={`inline-flex items-center justify-center min-w-[28px] h-7 px-1.5 rounded-full text-xs font-bold ring-1 ${color}`}>
+    <span
+      className={`inline-flex items-center justify-center min-w-[28px] h-7 px-1.5 rounded-full text-xs font-bold ring-1 ${color}`}
+    >
       {fmtLag(lag)}
     </span>
   )
@@ -66,11 +88,10 @@ function LagBadge({ jobId }: { jobId: string }) {
 
 const DEST_LABELS: Record<string, string> = {
   postgresql: 'PostgreSQL',
-  mysql:      'MySQL',
-  sqlserver:  'SQL Server',
-  mongodb:    'MongoDB',
+  mysql: 'MySQL',
+  sqlserver: 'SQL Server',
+  mongodb: 'MongoDB',
 }
-
 
 // ── Tab: Reset Offset ─────────────────────────────────────────────────────────
 // Only available when job is paused or failed.
@@ -86,9 +107,12 @@ function ResetTab({ job }: { job: ReplicationJob }) {
   return (
     <div className="p-5 space-y-5">
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Reset Kafka Offset</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+          Reset Kafka Offset
+        </p>
         <p className="text-xs text-gray-500">
-          Changes the committed offset for the consumer group. The job stays paused — resume it manually when ready.
+          Changes the committed offset for the consumer group. The job stays paused — resume it
+          manually when ready.
         </p>
       </div>
       <ResetOffsetForm job={job} metrics={metricsResp?.partitions ?? []} />
@@ -102,8 +126,10 @@ function ResetOffsetForm({ job, metrics }: { job: ReplicationJob; metrics: LiveM
   const [customOffsets, setCustomOffsets] = useState<Record<string, string>>({})
 
   const resetMut = useMutation({
-    mutationFn: (args: { position: 'earliest' | 'latest' | 'custom'; offsets?: Record<string, number> }) =>
-      resetJobOffset(job.id, args.position, args.offsets),
+    mutationFn: (args: {
+      position: 'earliest' | 'latest' | 'custom'
+      offsets?: Record<string, number>
+    }) => resetJobOffset(job.id, args.position, args.offsets),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['jobs'] })
       qc.invalidateQueries({ queryKey: ['job-errors', job.id] })
@@ -114,7 +140,9 @@ function ResetOffsetForm({ job, metrics }: { job: ReplicationJob; metrics: LiveM
 
   const openCustom = () => {
     const pre: Record<string, string> = {}
-    metrics.forEach((m) => { pre[String(m.partitionId)] = String(m.currentOffset) })
+    metrics.forEach((m) => {
+      pre[String(m.partitionId)] = String(m.currentOffset)
+    })
     setCustomOffsets(pre)
     setCustomOpen(true)
   }
@@ -132,12 +160,20 @@ function ResetOffsetForm({ job, metrics }: { job: ReplicationJob; metrics: LiveM
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
-        <Button size="sm" variant="secondary" loading={resetMut.isPending}
-          onClick={() => resetMut.mutate({ position: 'earliest' })}>
+        <Button
+          size="sm"
+          variant="secondary"
+          loading={resetMut.isPending}
+          onClick={() => resetMut.mutate({ position: 'earliest' })}
+        >
           <RotateCcw className="w-3.5 h-3.5" /> Earliest
         </Button>
-        <Button size="sm" variant="secondary" loading={resetMut.isPending}
-          onClick={() => resetMut.mutate({ position: 'latest' })}>
+        <Button
+          size="sm"
+          variant="secondary"
+          loading={resetMut.isPending}
+          onClick={() => resetMut.mutate({ position: 'latest' })}
+        >
           <RotateCcw className="w-3.5 h-3.5" /> Latest
         </Button>
         <Button size="sm" variant="secondary" onClick={openCustom}>
@@ -163,11 +199,16 @@ function ResetOffsetForm({ job, metrics }: { job: ReplicationJob; metrics: LiveM
                     <span className="text-gray-400 ml-1">/{m.endOffset}</span>
                   </span>
                   <Input
-                    type="number" min={0} placeholder="offset"
+                    type="number"
+                    min={0}
+                    placeholder="offset"
                     className="text-xs h-7 font-mono"
                     value={customOffsets[String(m.partitionId)] ?? ''}
                     onChange={(e) =>
-                      setCustomOffsets((p) => ({ ...p, [String(m.partitionId)]: e.target.value }))
+                      setCustomOffsets((p) => ({
+                        ...p,
+                        [String(m.partitionId)]: e.target.value,
+                      }))
                     }
                   />
                 </div>
@@ -179,8 +220,12 @@ function ResetOffsetForm({ job, metrics }: { job: ReplicationJob; metrics: LiveM
             </p>
           )}
           <div className="flex gap-2">
-            <Button size="sm" loading={resetMut.isPending} onClick={submitCustom}>Apply Reset</Button>
-            <Button size="sm" variant="secondary" onClick={() => setCustomOpen(false)}>Cancel</Button>
+            <Button size="sm" loading={resetMut.isPending} onClick={submitCustom}>
+              Apply Reset
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setCustomOpen(false)}>
+              Cancel
+            </Button>
           </div>
         </div>
       )}
@@ -207,7 +252,10 @@ function ReplicaEditor({ job }: { job: ReplicationJob }) {
   const apply = () => {
     const n = parseInt(value, 10)
     if (isNaN(n) || n < 1 || n > 32) return
-    if (n === job.consumerCount) { setEditing(false); return }
+    if (n === job.consumerCount) {
+      setEditing(false)
+      return
+    }
     scaleMut.mutate(n)
   }
 
@@ -217,7 +265,10 @@ function ReplicaEditor({ job }: { job: ReplicationJob }) {
         <span className="font-medium text-gray-800">{job.consumerCount}</span>
         <span className="text-gray-400 text-xs">({job.consumerCountMode})</span>
         <button
-          onClick={() => { setValue(String(job.consumerCount)); setEditing(true) }}
+          onClick={() => {
+            setValue(String(job.consumerCount))
+            setEditing(true)
+          }}
           className="text-xs text-blue-600 hover:underline ml-1"
         >
           Edit
@@ -232,9 +283,14 @@ function ReplicaEditor({ job }: { job: ReplicationJob }) {
         onClick={() => setValue((v) => String(Math.max(1, parseInt(v, 10) - 1)))}
         disabled={parseInt(value, 10) <= 1}
         className="w-5 h-5 rounded border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-100 font-bold leading-none"
-      >−</button>
+      >
+        −
+      </button>
       <input
-        type="number" min={1} max={32} value={value}
+        type="number"
+        min={1}
+        max={32}
+        value={value}
         onChange={(e) => setValue(e.target.value)}
         className="w-12 h-6 text-center text-xs border border-gray-300 rounded font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
       />
@@ -242,9 +298,15 @@ function ReplicaEditor({ job }: { job: ReplicationJob }) {
         onClick={() => setValue((v) => String(Math.min(32, parseInt(v, 10) + 1)))}
         disabled={parseInt(value, 10) >= 32}
         className="w-5 h-5 rounded border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-100 font-bold leading-none"
-      >+</button>
-      <Button size="sm" loading={scaleMut.isPending} onClick={apply}>Apply</Button>
-      <Button size="sm" variant="secondary" onClick={() => setEditing(false)}>Cancel</Button>
+      >
+        +
+      </button>
+      <Button size="sm" loading={scaleMut.isPending} onClick={apply}>
+        Apply
+      </Button>
+      <Button size="sm" variant="secondary" onClick={() => setEditing(false)}>
+        Cancel
+      </Button>
       {job.status !== 'running' && (
         <span className="text-xs text-amber-600 ml-1">takes effect on Resume</span>
       )}
@@ -261,7 +323,11 @@ function DetailsTab({ job }: { job: ReplicationJob }) {
     refetchInterval: 10000,
   })
 
-  const { data: metricsResp, dataUpdatedAt, isLoading: metricsLoading } = useQuery({
+  const {
+    data: metricsResp,
+    dataUpdatedAt,
+    isLoading: metricsLoading,
+  } = useQuery({
     queryKey: ['live-metrics', job.id],
     queryFn: () => fetchLiveMetrics(job.id),
     refetchInterval: 5000,
@@ -281,7 +347,9 @@ function DetailsTab({ job }: { job: ReplicationJob }) {
           <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
           <div>
             <p className="font-semibold mb-0.5">
-              {job.status === 'paused' ? 'Paused due to error — reset offset or resume to retry' : 'Last error'}
+              {job.status === 'paused'
+                ? 'Paused due to error — reset offset or resume to retry'
+                : 'Last error'}
             </p>
             <p className="font-mono break-all leading-relaxed">{job.lastError}</p>
           </div>
@@ -290,7 +358,9 @@ function DetailsTab({ job }: { job: ReplicationJob }) {
 
       {/* Config grid */}
       <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Configuration</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+          Configuration
+        </p>
         <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-xs">
           <div>
             <span className="text-gray-400 block mb-0.5">Consumer group</span>
@@ -302,7 +372,9 @@ function DetailsTab({ job }: { job: ReplicationJob }) {
           </div>
           <div>
             <span className="text-gray-400 block mb-0.5">Destination type</span>
-            <p className="font-medium text-gray-800">{DEST_LABELS[job.destinationType] || job.destinationType}</p>
+            <p className="font-medium text-gray-800">
+              {DEST_LABELS[job.destinationType] || job.destinationType}
+            </p>
           </div>
           <div>
             <span className="text-gray-400 block mb-0.5">Table / Collection</span>
@@ -311,14 +383,18 @@ function DetailsTab({ job }: { job: ReplicationJob }) {
             </p>
           </div>
           <div>
-            <span className="text-gray-400 block mb-0.5">Host</span>
+            <span className="text-gray-400 block mb-0.5">Connection</span>
             <p className="font-mono font-medium text-gray-800">
-              {job.destinationConfig.host}:{job.destinationConfig.port}
+              {job.destinationConfig.connectionId || 'Legacy connection · migration required'}
             </p>
           </div>
           <div>
-            <span className="text-gray-400 block mb-0.5">Database</span>
-            <p className="font-mono font-medium text-gray-800">{job.destinationConfig.database}</p>
+            <span className="text-gray-400 block mb-0.5">Credential handling</span>
+            <p className="font-mono font-medium text-gray-800">
+              {job.destinationConfig.connectionId
+                ? 'Managed by connection profile'
+                : 'Credentials hidden'}
+            </p>
           </div>
           <div>
             <span className="text-gray-400 block mb-0.5">Start position</span>
@@ -351,13 +427,19 @@ function DetailsTab({ job }: { job: ReplicationJob }) {
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Live Partition Metrics</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              Live Partition Metrics
+            </p>
             {groupState && (
-              <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                groupState === 'Stable' ? 'bg-green-100 text-green-700' :
-                groupState === 'Empty'  ? 'bg-gray-100 text-gray-500' :
-                'bg-yellow-100 text-yellow-700'
-              }`}>
+              <span
+                className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                  groupState === 'Stable'
+                    ? 'bg-green-100 text-green-700'
+                    : groupState === 'Empty'
+                      ? 'bg-gray-100 text-gray-500'
+                      : 'bg-yellow-100 text-yellow-700'
+                }`}
+              >
                 {groupState}
               </span>
             )}
@@ -377,13 +459,17 @@ function DetailsTab({ job }: { job: ReplicationJob }) {
             </div>
             <div className="bg-gray-50 rounded-xl p-3 text-center">
               <p className="text-xs text-gray-500 mb-1">Total Lag</p>
-              <p className={`text-xl font-bold ${totalLag === 0 ? 'text-green-600' : totalLag < 1000 ? 'text-yellow-600' : 'text-red-600'}`}>
+              <p
+                className={`text-xl font-bold ${totalLag === 0 ? 'text-green-600' : totalLag < 1000 ? 'text-yellow-600' : 'text-red-600'}`}
+              >
                 {totalLag.toLocaleString()}
               </p>
             </div>
             <div className="bg-gray-50 rounded-xl p-3 text-center">
               <p className="text-xs text-gray-500 mb-1">Caught up</p>
-              <p className="text-xl font-bold text-gray-800">{caught}/{metrics.length}</p>
+              <p className="text-xl font-bold text-gray-800">
+                {caught}/{metrics.length}
+              </p>
             </div>
           </div>
         )}
@@ -406,14 +492,31 @@ function DetailsTab({ job }: { job: ReplicationJob }) {
               </thead>
               <tbody>
                 {metrics.map((m) => {
-                  const pct = m.endOffset > 0 ? Math.min(100, Math.round((m.currentOffset / m.endOffset) * 100)) : 0
+                  const pct =
+                    m.endOffset > 0
+                      ? Math.min(100, Math.round((m.currentOffset / m.endOffset) * 100))
+                      : 0
                   return (
                     <tr key={m.partitionId} className="border-t border-gray-100 hover:bg-gray-50">
-                      <td className="px-3 py-2.5 font-mono font-semibold text-gray-700">P{m.partitionId}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-gray-600">{m.currentOffset.toLocaleString()}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-gray-600">{m.endOffset.toLocaleString()}</td>
+                      <td className="px-3 py-2.5 font-mono font-semibold text-gray-700">
+                        P{m.partitionId}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono text-gray-600">
+                        {m.currentOffset.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono text-gray-600">
+                        {m.endOffset.toLocaleString()}
+                      </td>
                       <td className="px-3 py-2.5 text-right font-mono font-semibold">
-                        <span className={m.lag === 0 ? 'text-green-600' : m.lag < 100 ? 'text-yellow-600' : 'text-red-600'}>
+                        <span
+                          className={
+                            m.lag === 0
+                              ? 'text-green-600'
+                              : m.lag < 100
+                                ? 'text-yellow-600'
+                                : 'text-red-600'
+                          }
+                        >
                           {m.lag.toLocaleString()}
                         </span>
                       </td>
@@ -460,7 +563,10 @@ function DetailsTab({ job }: { job: ReplicationJob }) {
                     <tr key={m.memberId} className="border-t border-gray-100 hover:bg-gray-50">
                       <td className="px-3 py-2 font-mono text-gray-800">{m.clientId}</td>
                       <td className="px-3 py-2 font-mono text-gray-600">{m.clientHost}</td>
-                      <td className="px-3 py-2 font-mono text-gray-400 text-xs truncate max-w-[180px]" title={m.memberId}>
+                      <td
+                        className="px-3 py-2 font-mono text-gray-400 text-xs truncate max-w-[180px]"
+                        title={m.memberId}
+                      >
                         {m.memberId}
                       </td>
                     </tr>
@@ -476,7 +582,8 @@ function DetailsTab({ job }: { job: ReplicationJob }) {
       {errors.length > 0 && (
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-            Error Log <span className="text-red-400 font-normal normal-case">({errors.length})</span>
+            Error Log{' '}
+            <span className="text-red-400 font-normal normal-case">({errors.length})</span>
           </p>
           <div className="border border-red-100 rounded-xl overflow-hidden">
             <table className="w-full text-xs">
@@ -491,10 +598,16 @@ function DetailsTab({ job }: { job: ReplicationJob }) {
               <tbody>
                 {errors.map((e) => (
                   <tr key={e.id} className="border-t border-red-50 hover:bg-red-50/50">
-                    <td className="px-3 py-2 font-mono font-semibold text-gray-700">P{e.partitionId}</td>
-                    <td className="px-3 py-2 text-right font-mono text-gray-600">{e.offset.toLocaleString()}</td>
+                    <td className="px-3 py-2 font-mono font-semibold text-gray-700">
+                      P{e.partitionId}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-gray-600">
+                      {e.offset.toLocaleString()}
+                    </td>
                     <td className="px-3 py-2 text-red-700 max-w-xs">
-                      <span className="truncate block" title={e.errorMsg}>{e.errorMsg}</span>
+                      <span className="truncate block" title={e.errorMsg}>
+                        {e.errorMsg}
+                      </span>
                     </td>
                     <td className="px-3 py-2 text-right text-gray-400 whitespace-nowrap">
                       {new Date(e.occurredAt).toLocaleTimeString()}
@@ -513,7 +626,11 @@ function DetailsTab({ job }: { job: ReplicationJob }) {
 // ── Tab: Logs ─────────────────────────────────────────────────────────────────
 
 function LogsTab({ jobId }: { jobId: string }) {
-  const { data: logs = '', isFetching, refetch } = useQuery({
+  const {
+    data: logs = '',
+    isFetching,
+    refetch,
+  } = useQuery({
     queryKey: ['job-logs', jobId],
     queryFn: () => fetchJobLogs(jobId, 300),
     staleTime: 0,
@@ -523,7 +640,9 @@ function LogsTab({ jobId }: { jobId: string }) {
   return (
     <div className="p-5 flex flex-col gap-3 h-full">
       <div className="flex items-center justify-between flex-shrink-0">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Pod Logs (last 300 lines)</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+          Pod Logs (last 300 lines)
+        </p>
         <button
           onClick={() => refetch()}
           disabled={isFetching}
@@ -533,7 +652,10 @@ function LogsTab({ jobId }: { jobId: string }) {
           Refresh
         </button>
       </div>
-      <div className="bg-gray-900 rounded-xl p-4 overflow-auto flex-1" style={{ minHeight: 300, maxHeight: 'calc(100vh - 240px)' }}>
+      <div
+        className="bg-gray-900 rounded-xl p-4 overflow-auto flex-1"
+        style={{ minHeight: 300, maxHeight: 'calc(100vh - 240px)' }}
+      >
         {isFetching && !logs ? (
           <p className="text-xs text-gray-500">Fetching logs…</p>
         ) : logs ? (
@@ -541,7 +663,9 @@ function LogsTab({ jobId }: { jobId: string }) {
             {logs}
           </pre>
         ) : (
-          <p className="text-xs text-gray-500">No logs found. Worker pod may not have started yet.</p>
+          <p className="text-xs text-gray-500">
+            No logs found. Worker pod may not have started yet.
+          </p>
         )}
       </div>
     </div>
@@ -573,22 +697,37 @@ function JobDrawer({ job, onClose }: { job: ReplicationJob; onClose: () => void 
 
   const deleteMut = useMutation({
     mutationFn: () => deleteJob(job.id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['jobs'] }); onClose() },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs'] })
+      onClose()
+    },
   })
 
   const totalLag = liveMetrics.reduce((s, m) => s + m.lag, 0)
 
   const canReset = job.status === 'paused' || job.status === 'failed'
 
-  const tabs: { id: DrawerTab; label: string; icon: React.ReactNode; disabled?: boolean }[] = [
-    { id: 'details', label: 'Details',      icon: <Info className="w-3.5 h-3.5" /> },
-    { id: 'logs',    label: 'Logs',         icon: <Terminal className="w-3.5 h-3.5" /> },
-    { id: 'reset',   label: 'Reset Offset', icon: <RotateCcw className="w-3.5 h-3.5" />, disabled: !canReset },
+  const tabs: {
+    id: DrawerTab
+    label: string
+    icon: React.ReactNode
+    disabled?: boolean
+  }[] = [
+    { id: 'details', label: 'Details', icon: <Info className="w-3.5 h-3.5" /> },
+    { id: 'logs', label: 'Logs', icon: <Terminal className="w-3.5 h-3.5" /> },
+    {
+      id: 'reset',
+      label: 'Reset Offset',
+      icon: <RotateCcw className="w-3.5 h-3.5" />,
+      disabled: !canReset,
+    },
   ]
 
   // Close on Escape
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
@@ -600,7 +739,6 @@ function JobDrawer({ job, onClose }: { job: ReplicationJob; onClose: () => void 
 
       {/* Drawer panel */}
       <div className="fixed right-0 top-0 h-full w-[680px] bg-white shadow-2xl z-50 flex flex-col">
-
         {/* ── Header ── */}
         <div className="px-5 pt-4 pb-3 border-b border-gray-100 flex-shrink-0">
           {/* Title row */}
@@ -625,7 +763,9 @@ function JobDrawer({ job, onClose }: { job: ReplicationJob; onClose: () => void 
             <span className="flex items-center gap-1">
               <Activity className="w-3 h-3" />
               Total lag:
-              <span className={`font-mono font-semibold ml-0.5 ${totalLag === 0 ? 'text-green-600' : totalLag < 1000 ? 'text-yellow-600' : 'text-red-600'}`}>
+              <span
+                className={`font-mono font-semibold ml-0.5 ${totalLag === 0 ? 'text-green-600' : totalLag < 1000 ? 'text-yellow-600' : 'text-red-600'}`}
+              >
                 {totalLag.toLocaleString()}
               </span>
             </span>
@@ -660,7 +800,9 @@ function JobDrawer({ job, onClose }: { job: ReplicationJob; onClose: () => void 
               size="sm"
               variant="danger"
               loading={deleteMut.isPending}
-              onClick={() => { if (confirm(`Delete job "${job.name}"?`)) deleteMut.mutate() }}
+              onClick={() => {
+                if (confirm(`Delete job "${job.name}"?`)) deleteMut.mutate()
+              }}
             >
               <Trash2 className="w-3.5 h-3.5" /> Delete
             </Button>
@@ -679,8 +821,8 @@ function JobDrawer({ job, onClose }: { job: ReplicationJob; onClose: () => void 
                 t.disabled
                   ? 'border-transparent text-gray-300 cursor-not-allowed'
                   : activeTab === t.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
               {t.icon}
@@ -692,8 +834,8 @@ function JobDrawer({ job, onClose }: { job: ReplicationJob; onClose: () => void 
         {/* ── Tab content ── */}
         <div className="flex-1 overflow-auto">
           {activeTab === 'details' && <DetailsTab job={job} />}
-          {activeTab === 'logs'    && <LogsTab jobId={job.id} />}
-          {activeTab === 'reset'   && <ResetTab job={job} />}
+          {activeTab === 'logs' && <LogsTab jobId={job.id} />}
+          {activeTab === 'reset' && <ResetTab job={job} />}
         </div>
       </div>
     </>
@@ -761,8 +903,8 @@ export default function JobsPage() {
   const selectedJob = jobs.find((j) => j.id === selectedJobId) ?? null
 
   const running = jobs.filter((j) => j.status === 'running').length
-  const paused  = jobs.filter((j) => j.status === 'paused').length
-  const failed  = jobs.filter((j) => j.status === 'failed').length
+  const paused = jobs.filter((j) => j.status === 'paused').length
+  const failed = jobs.filter((j) => j.status === 'failed').length
 
   return (
     <div>
@@ -771,9 +913,24 @@ export default function JobsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Replication Jobs</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {jobs.length} job{jobs.length !== 1 ? 's' : ''}
-            {running > 0 && <> · <span className="text-green-600">{running} running</span></>}
-            {paused  > 0 && <> · <span className="text-yellow-600">{paused} paused</span></>}
-            {failed  > 0 && <> · <span className="text-red-600">{failed} failed</span></>}
+            {running > 0 && (
+              <>
+                {' '}
+                · <span className="text-green-600">{running} running</span>
+              </>
+            )}
+            {paused > 0 && (
+              <>
+                {' '}
+                · <span className="text-yellow-600">{paused} paused</span>
+              </>
+            )}
+            {failed > 0 && (
+              <>
+                {' '}
+                · <span className="text-red-600">{failed} failed</span>
+              </>
+            )}
           </p>
         </div>
         <Button onClick={() => setShowCreate(true)}>
@@ -801,21 +958,12 @@ export default function JobsPage() {
       ) : (
         <div className="space-y-2">
           {jobs.map((job) => (
-            <JobCard
-              key={job.id}
-              job={job}
-              onClick={() => setSelectedJobId(job.id)}
-            />
+            <JobCard key={job.id} job={job} onClick={() => setSelectedJobId(job.id)} />
           ))}
         </div>
       )}
 
-      {selectedJob && (
-        <JobDrawer
-          job={selectedJob}
-          onClose={() => setSelectedJobId(null)}
-        />
-      )}
+      {selectedJob && <JobDrawer job={selectedJob} onClose={() => setSelectedJobId(null)} />}
 
       {showCreate && <CreateJobModal onClose={() => setShowCreate(false)} />}
     </div>

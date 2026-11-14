@@ -5,6 +5,7 @@ import logging
 from datetime import timezone
 
 import pymysql
+from credentials import connection_credentials
 import pymysql.cursors
 
 from .base import BaseDestination, SQL_TYPE_MAP, METADATA_COLS, extract_field, parse_value, now_utc
@@ -25,12 +26,18 @@ class MySQLDestination(BaseDestination):
     def __init__(self, config: dict, fields: list):
         super().__init__(config, fields)
         self.table = config.get("tableName", "kafka_messages")
+        self._connect()
+
+    def _connect(self):
+        config = connection_credentials(self.config)
         self._conn = pymysql.connect(
             host=config["host"],
             port=int(config.get("port", 3306)),
             database=config["database"],
             user=config["username"],
             password=config["password"],
+            ssl_ca=config['sslRootCert'], ssl_verify_cert=True, ssl_verify_identity=True,
+            connect_timeout=10,
             charset="utf8mb4",
             cursorclass=pymysql.cursors.DictCursor,
             autocommit=False,
@@ -61,6 +68,10 @@ class MySQLDestination(BaseDestination):
         logger.info("Table %s ensured", self.table)
 
     def insert(self, record: dict, partition: int, offset: int, published_at):
+        try:
+            self._conn.ping(reconnect=False)
+        except pymysql.err.OperationalError:
+            self._connect()
         col_names = [f"`{f['name']}`" for f in self.fields]
         col_names += [f"`{c}`" for c, _, _ in METADATA_COLS]
 

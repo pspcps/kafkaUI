@@ -1,6 +1,7 @@
 """
 sqlserver.py — replication destination for Microsoft SQL Server.
 """
+from credentials import connection_credentials
 import logging
 from datetime import timezone
 
@@ -27,13 +28,13 @@ class SQLServerDestination(BaseDestination):
         super().__init__(config, fields)
         self.table = config.get("tableName", "kafka_messages")
         self.schema = config.get("schema", "dbo")
-        c = config
+        c = connection_credentials(config)
+        quote = lambda value: '{' + str(value).replace('}', '}}') + '}'
         conn_str = (
-            f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-            f"SERVER={c['host']},{c.get('port', 1433)};"
-            f"DATABASE={c['database']};"
-            f"UID={c['username']};PWD={c['password']};"
-            f"TrustServerCertificate=yes;"
+            'DRIVER={ODBC Driver 18 for SQL Server};'
+            f"SERVER={quote(str(c['host']) + ',' + str(c.get('port', 1433)))};"
+            f"DATABASE={quote(c['database'])};UID={quote(c['username'])};PWD={quote(c['password'])};"
+            'Encrypt=yes;TrustServerCertificate=no;'
         )
         self._conn = pyodbc.connect(conn_str, autocommit=False)
 

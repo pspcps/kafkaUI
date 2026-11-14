@@ -2,6 +2,7 @@
 mongodb.py — replication destination for MongoDB.
 Direct document insert (schema optional, used for field coercion only).
 """
+from credentials import connection_credentials
 import logging
 from datetime import timezone
 
@@ -15,16 +16,13 @@ logger = logging.getLogger(__name__)
 class MongoDBDestination(BaseDestination):
     def __init__(self, config: dict, fields: list):
         super().__init__(config, fields)
-        c = config
+        c = connection_credentials(config)
         self.collection_name = c.get("collection") or c.get("tableName", "kafka_messages")
         port = int(c.get("port", 27017))
 
-        if c.get("username") and c.get("password"):
-            uri = f"mongodb://{c['username']}:{c['password']}@{c['host']}:{port}/{c['database']}?authSource=admin"
-        else:
-            uri = f"mongodb://{c['host']}:{port}/"
-
-        self._client = MongoClient(uri, serverSelectionTimeoutMS=10_000)
+        tls_options = {'tlsCAFile': c['sslRootCert']} if c.get('sslRootCert') else {}
+        self._client = MongoClient(host=c['host'], port=port, username=c['username'], password=c['password'],
+                                   authSource='admin', tls=True, serverSelectionTimeoutMS=10_000, **tls_options)
         self._db = self._client[c["database"]]
         self._col = self._db[self.collection_name]
 

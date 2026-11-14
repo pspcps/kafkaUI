@@ -7,3 +7,5 @@ pymysql==1.1.1
 pyodbc==5.2.0
 requests==2.32.3
 python-dateutil==2.9.0
+
+boto3==1.44.3

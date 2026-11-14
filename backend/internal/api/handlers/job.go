@@ -47,6 +47,9 @@ func (h *JobHandler) List(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	for i := range jobs {
+		jobs[i] = publicJob(jobs[i])
+	}
 	c.JSON(http.StatusOK, jobs)
 }
 
@@ -61,25 +64,25 @@ func (h *JobHandler) Get(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "job not found"})
 		return
 	}
-	c.JSON(http.StatusOK, job)
+	c.JSON(http.StatusOK, publicJob(*job))
 }
 
 // POST /api/v1/jobs
 func (h *JobHandler) Create(c *gin.Context) {
 	var body struct {
-		Name              string                `json:"name" binding:"required"`
-		ClusterID         string                `json:"clusterId" binding:"required"`
-		TopicName         string                `json:"topicName" binding:"required"`
-		ConsumerGroup     string                `json:"consumerGroup" binding:"required"`
-		ServiceName       string                `json:"serviceName" binding:"required"`
-		DestinationType   string                `json:"destinationType" binding:"required"`
-		DestinationConfig db.DestinationConfig  `json:"destinationConfig" binding:"required"`
-		StartPosition     string                `json:"startPosition"`
-		IncludeHistorical bool                  `json:"includeHistorical"`
-		ConsumerCountMode string                `json:"consumerCountMode"`
-		ConsumerCount     int                   `json:"consumerCount"`
-		TeamName          string                `json:"teamName"`
-		AlertChannel      string                `json:"alertChannel"`
+		Name              string               `json:"name" binding:"required"`
+		ClusterID         string               `json:"clusterId" binding:"required"`
+		TopicName         string               `json:"topicName" binding:"required"`
+		ConsumerGroup     string               `json:"consumerGroup" binding:"required"`
+		ServiceName       string               `json:"serviceName" binding:"required"`
+		DestinationType   string               `json:"destinationType" binding:"required"`
+		DestinationConfig db.DestinationConfig `json:"destinationConfig" binding:"required"`
+		StartPosition     string               `json:"startPosition"`
+		IncludeHistorical bool                 `json:"includeHistorical"`
+		ConsumerCountMode string               `json:"consumerCountMode"`
+		ConsumerCount     int                  `json:"consumerCount"`
+		TeamName          string               `json:"teamName"`
+		AlertChannel      string               `json:"alertChannel"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -94,12 +97,10 @@ func (h *JobHandler) Create(c *gin.Context) {
 	if body.ConsumerCount <= 0 {
 		body.ConsumerCount = 1
 	}
-	// Worker pods run inside k8s — localhost/127.0.0.1 is unreachable from there.
-	// Transparently rewrite so users don't have to know about host.docker.internal.
-	body.DestinationConfig.Host = rewriteLocalhost(body.DestinationConfig.Host, h.workerHost)
-	if body.DestinationType == "postgresql" && body.DestinationConfig.Port == 5432 {
-		// Local docker-compose Postgres is published on host port 5433.
-		body.DestinationConfig.Port = 5433
+	profile, err := validateDestination(body.DestinationConfig, body.DestinationType)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
 	}
 
 	job, err := h.jobs.Create(&db.ReplicationJob{
@@ -127,7 +128,8 @@ func (h *JobHandler) Create(c *gin.Context) {
 	// Worker pods run in k8s and cannot reach Docker-internal hostnames,
 	// so swap Docker-internal broker addresses with host.docker.internal equivalents.
 	reg := c.MustGet("registry").(*kafka.Registry)
-	brokerList, _ := reg.GetBrokers(body.ClusterID)
+	configuredBrokers, _ := reg.GetBrokers(body.ClusterID)
+	brokerList := append([]string(nil), configuredBrokers...)
 	for i, b := range brokerList {
 		// kafka:9093 (INTERNAL) → worker-reachable host:9092 (PLAINTEXT, host-exposed)
 		brokerList[i] = strings.ReplaceAll(b, "kafka:9093", h.workerHost+":9092")
@@ -139,9 +141,10 @@ func (h *JobHandler) Create(c *gin.Context) {
 		Name:         deployName,
 		JobID:        job.ID,
 		Replicas:     int32(job.ConsumerCount),
-		MgmtDBDSN:   h.workerDSN,
-		MgmtAPIURL:  h.workerAPI,
+		MgmtDBDSN:    h.workerDSN,
+		MgmtAPIURL:   h.workerAPI,
 		KafkaBrokers: brokers,
+		Connection:   profile,
 	})
 	if err != nil {
 		// Mark job failed but don't delete it — user can retry.
@@ -158,7 +161,7 @@ func (h *JobHandler) Create(c *gin.Context) {
 	job.Status = "running"
 	job.K8sDeploymentName = deployName
 
-	c.JSON(http.StatusCreated, job)
+	c.JSON(http.StatusCreated, publicJob(*job))
 }
 
 // PATCH /api/v1/jobs/:id  — body: {"action": "pause" | "resume"}
@@ -286,10 +289,16 @@ func (h *JobHandler) UpdateDestination(c *gin.Context) {
 		return
 	}
 
-	body.DestinationConfig.Host = rewriteLocalhost(body.DestinationConfig.Host, h.workerHost)
-	if body.DestinationType == "postgresql" && body.DestinationConfig.Port == 5432 {
-		body.DestinationConfig.Port = 5433
+	if _, err := validateDestination(body.DestinationConfig, body.DestinationType); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
 	}
+	// Existing pods carry their original profile and mounts. Do not silently switch providers.
+	if body.DestinationConfig.ConnectionID != job.DestinationConfig.ConnectionID {
+		c.JSON(http.StatusConflict, gin.H{"message": "Changing a connection requires recreating the worker deployment; create a replacement job"})
+		return
+	}
+
 	if err := h.jobs.UpdateDestination(job.ID, body.DestinationType, body.DestinationConfig); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -311,13 +320,14 @@ func (h *JobHandler) GetMetrics(c *gin.Context) {
 // Resets consumer group offsets and restarts the k8s deployment.
 //
 // Body variants:
-//   {"position": "earliest"}              — seek all partitions to earliest
-//   {"position": "latest"}               — seek all partitions to latest
-//   {"position": "custom", "offsets": {"0": 42, "2": 100}}  — per-partition exact offsets
+//
+//	{"position": "earliest"}              — seek all partitions to earliest
+//	{"position": "latest"}               — seek all partitions to latest
+//	{"position": "custom", "offsets": {"0": 42, "2": 100}}  — per-partition exact offsets
 func (h *JobHandler) ResetOffset(c *gin.Context) {
 	var body struct {
-		Position string            `json:"position" binding:"required"`
-		Offsets  map[string]int64  `json:"offsets"` // partition_id(string) → offset
+		Position string           `json:"position" binding:"required"`
+		Offsets  map[string]int64 `json:"offsets"` // partition_id(string) → offset
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

@@ -4,6 +4,8 @@ A Kafka cluster management UI built with **Next.js 14** (frontend) and **Go + Gi
 
 See [enterprise readiness and security rollout notes](docs/ENTERPRISE_READINESS.md) for the current adoption blockers, worker credential setup, and delivery roadmap.
 
+See [managed replication connections](docs/MANAGED_CONNECTIONS.md) for the new connection profile model and migration requirements.
+
 ## Features
 
 - **Cluster Dashboard** — broker count, topic count, consumer groups, controller info

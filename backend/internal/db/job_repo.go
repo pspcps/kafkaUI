@@ -9,43 +9,44 @@ import (
 
 // DestinationConfig holds connection details for a replication target.
 type DestinationConfig struct {
-	Host       string `json:"host"`
-	Port       int    `json:"port"`
-	Database   string `json:"database"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
+	ConnectionID string `json:"connectionId,omitempty"`
+	Host         string `json:"host,omitempty"`
+	Port         int    `json:"port,omitempty"`
+	Database     string `json:"database,omitempty"`
+	Username     string `json:"username,omitempty"`
+	Password     string `json:"password,omitempty"`
 	// SQL targets
-	TableName  string `json:"tableName,omitempty"`
+	TableName string `json:"tableName,omitempty"`
 	// MongoDB
 	Collection string `json:"collection,omitempty"`
 	// SQL Server
-	Schema     string `json:"schema,omitempty"`
+	Schema string `json:"schema,omitempty"`
 }
 
 // ReplicationJob is one user-created replication job.
 type ReplicationJob struct {
-	ID                 string            `json:"id"`
-	Name               string            `json:"name"`
-	ClusterID          string            `json:"clusterId"`
-	TopicName          string            `json:"topicName"`
-	ConsumerGroup      string            `json:"consumerGroup"`
-	ServiceName        string            `json:"serviceName"`
-	DestinationType    string            `json:"destinationType"`
-	DestinationConfig  DestinationConfig `json:"destinationConfig"`
-	StartPosition      string            `json:"startPosition"`
-	IncludeHistorical  bool              `json:"includeHistorical"`
-	ConsumerCountMode  string            `json:"consumerCountMode"`
-	ConsumerCount      int               `json:"consumerCount"`
-	TeamName           string            `json:"teamName"`
-	AlertChannel       string            `json:"alertChannel"`
-	Status             string            `json:"status"`
-	LastError          string            `json:"lastError,omitempty"`
-	K8sDeploymentName  string            `json:"k8sDeploymentName,omitempty"`
-	K8sNamespace       string            `json:"k8sNamespace"`
-	CreatedAt          time.Time         `json:"createdAt"`
-	UpdatedAt          time.Time         `json:"updatedAt"`
+	ID                string            `json:"id"`
+	Name              string            `json:"name"`
+	ClusterID         string            `json:"clusterId"`
+	TopicName         string            `json:"topicName"`
+	ConsumerGroup     string            `json:"consumerGroup"`
+	ServiceName       string            `json:"serviceName"`
+	DestinationType   string            `json:"destinationType"`
+	DestinationConfig DestinationConfig `json:"destinationConfig"`
+	StartPosition     string            `json:"startPosition"`
+	IncludeHistorical bool              `json:"includeHistorical"`
+	ConsumerCountMode string            `json:"consumerCountMode"`
+	ConsumerCount     int               `json:"consumerCount"`
+	TeamName          string            `json:"teamName"`
+	AlertChannel      string            `json:"alertChannel"`
+	Status            string            `json:"status"`
+	LastError         string            `json:"lastError,omitempty"`
+	K8sDeploymentName string            `json:"k8sDeploymentName,omitempty"`
+	K8sNamespace      string            `json:"k8sNamespace"`
+	CreatedAt         time.Time         `json:"createdAt"`
+	UpdatedAt         time.Time         `json:"updatedAt"`
 	// Joined from consumer_metrics
-	Metrics            []ConsumerMetric  `json:"metrics,omitempty"`
+	Metrics []ConsumerMetric `json:"metrics,omitempty"`
 }
 
 // ConsumerMetric is one partition's lag row.

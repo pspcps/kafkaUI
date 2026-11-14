@@ -5,6 +5,7 @@ import logging
 from datetime import timezone
 
 import psycopg2
+from credentials import connection_credentials
 import psycopg2.extras
 
 from .base import BaseDestination, SQL_TYPE_MAP, METADATA_COLS, extract_field, parse_value, now_utc
@@ -21,13 +22,11 @@ class PostgreSQLDestination(BaseDestination):
         self._connect()
 
     def _connect(self):
-        c = self.config
-        dsn = (
-            f"host={c['host']} port={c.get('port', 5432)} "
-            f"dbname={c['database']} user={c['username']} password={c['password']} "
-            f"sslmode=prefer"
+        c = connection_credentials(self.config)
+        self._conn = psycopg2.connect(
+            host=c['host'], port=c.get('port', 5432), dbname=c['database'], user=c['username'],
+            password=c['password'], sslmode='verify-full', sslrootcert=c['sslRootCert'], connect_timeout=10,
         )
-        self._conn = psycopg2.connect(dsn)
         self._conn.autocommit = False
 
     def ensure_table(self):
@@ -63,6 +62,8 @@ class PostgreSQLDestination(BaseDestination):
         logger.info("Table %s.%s ensured", self.schema, self.table)
 
     def insert(self, record: dict, partition: int, offset: int, published_at):
+        if self._conn.closed:
+            self._connect()
         col_names = [f'"{f["name"]}"' for f in self.fields]
         col_names += [f'"{c}"' for c, _, _ in METADATA_COLS]
 
