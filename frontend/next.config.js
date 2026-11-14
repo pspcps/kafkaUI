@@ -2,6 +2,7 @@
 const nextConfig = {
   output: 'standalone',
   async rewrites() {
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true') return []
     return [
       {
         source: '/api/:path*',

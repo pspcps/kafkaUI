@@ -23,6 +23,7 @@ const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
+  ...(process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ? { adapter: async (config) => (await import('./demo')).demoAdapter(config) } : {}),
 })
 
 api.interceptors.request.use((config) => {

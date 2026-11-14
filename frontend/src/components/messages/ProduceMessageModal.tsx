@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchSchema, produceMessage } from '@/lib/api'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -15,6 +15,7 @@ interface ProduceMessageModalProps {
 }
 
 export function ProduceMessageModal({ clusterId, topic, partitionCount, onClose }: ProduceMessageModalProps) {
+  const qc = useQueryClient()
   const [key, setKey] = useState('')
   const [value, setValue] = useState('')
   const [partition, setPartition] = useState<string>('')
@@ -39,7 +40,14 @@ export function ProduceMessageModal({ clusterId, topic, partitionCount, onClose 
         partition: partition ? parseInt(partition) : undefined,
         headers: Object.keys(headers).length > 0 ? headers : undefined,
       }),
-    onSuccess: onClose,
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['messages', clusterId, topic] }),
+        qc.invalidateQueries({ queryKey: ['topic', clusterId, topic] }),
+        qc.invalidateQueries({ queryKey: ['topics', clusterId] }),
+      ])
+      onClose()
+    },
   })
 
   const addHeader = () => {
