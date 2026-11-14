@@ -1,6 +1,8 @@
 package api
 
 import (
+	"os"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prakash/kafbat-ui/internal/api/handlers"
 	"github.com/prakash/kafbat-ui/internal/api/middleware"
@@ -38,17 +40,16 @@ func NewRouter(
 	v1.POST("/auth/login", authH.Login)
 
 	// ── Worker-callback endpoints (called by Python worker pods) ─────────────────
-	// TODO(security): require WORKER_API_TOKEN here once worker.py sends it.
-	// Until then these stay open so existing worker pods keep functioning.
+	// Worker callbacks fail closed unless a separate service credential is configured.
 	if k8sClient != nil && jobRepo != nil {
 		jobH := handlers.NewJobHandler(jobRepo, k8sClient, mgmtDSN)
-		v1.POST("/jobs/:id/metrics", jobH.ReportMetric)
-		v1.POST("/jobs/:id/errors", jobH.ReportError)
+		v1.POST("/jobs/:id/metrics", middleware.WorkerAuth(os.Getenv("WORKER_API_TOKEN")), jobH.ReportMetric)
+		v1.POST("/jobs/:id/errors", middleware.WorkerAuth(os.Getenv("WORKER_API_TOKEN")), jobH.ReportError)
 	}
 
 	// ── All routes below require a valid JWT ─────────────────────────────────────
 	protected := v1.Group("")
-	protected.Use(middleware.JWTAuth(jwtConf))
+	protected.Use(middleware.JWTAuth(jwtConf), middleware.AuthorizeAccess())
 
 	protected.GET("/auth/me", authH.Me)
 
@@ -83,7 +84,8 @@ func NewRouter(
 
 	if k8sClient != nil && jobRepo != nil {
 		jobH := handlers.NewJobHandler(jobRepo, k8sClient, mgmtDSN)
-		jobs := protected.Group("/jobs")
+		// Job responses currently include destination credentials; restrict all job access.
+		jobs := protected.Group("/jobs", middleware.RequireRole(db.RoleAdmin))
 		{
 			jobs.GET("", jobH.List)
 			jobs.POST("", jobH.Create)

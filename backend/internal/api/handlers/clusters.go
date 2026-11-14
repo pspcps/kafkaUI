@@ -18,9 +18,20 @@ func NewClustersHandler(registry *kafka.Registry) *ClustersHandler {
 
 // GET /api/v1/clusters
 func (h *ClustersHandler) ListClusters(c *gin.Context) {
-	clusters := h.registry.List()
-	if clusters == nil {
-		clusters = []models.ClusterConfig{}
+	c.JSON(http.StatusOK, clusterViews(h.registry.List()))
+}
+
+// clusterViews deliberately excludes all authentication settings.
+func clusterViews(clusters []models.ClusterConfig) []clusterView {
+	views := make([]clusterView, 0, len(clusters))
+	for _, cluster := range clusters {
+		views = append(views, clusterView{ID: cluster.ID, Name: cluster.Name, Brokers: cluster.Brokers})
 	}
-	c.JSON(http.StatusOK, clusters)
+	return views
+}
+
+type clusterView struct {
+	ID      string   `json:"id"`
+	Name    string   `json:"name"`
+	Brokers []string `json:"brokers"`
 }
