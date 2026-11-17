@@ -20,8 +20,11 @@ No secrets or backend environment variables are needed. This configuration inten
 - Topic search, partitions and configuration.
 - Browse/filter synthetic messages; produce a sample message.
 - Create and delete demo topics.
-- Consumer groups and sample lag details.
-- Sample replication jobs with simulated pause/resume and scaling.
+- Topic Consumers tab with links to matching groups.
+- Consumer groups with multiple topic summaries, closed-by-default partition details, known lag and links back to topics.
+- Whole-message and individual key/value/header/metadata clipboard controls.
+- Sample replication jobs with simulated pause/resume and scaling. New jobs select simulated managed connections instead of requesting passwords.
+- The old version 1 demo state is removed from browser storage because it previously allowed inline password inputs.
 - Schema editing stores local examples. Server-side schema validation and Kafka offset resets explicitly report that they require a live backend.
 
 Actions are simulations and do not prove Kafka or worker integration. Synthetic metric values are fixed examples, not live measurements. The demo provides convenience entry without login; it grants no access to a real backend and sends no API requests. Resetting the demo clears only demo data.

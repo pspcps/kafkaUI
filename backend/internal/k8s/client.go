@@ -2,7 +2,9 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/prakash/kafbat-ui/internal/connections"
 	"os"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -66,15 +68,16 @@ type DeploymentSpec struct {
 	Name         string
 	JobID        string
 	Replicas     int32
-	MgmtDBDSN    string // reachable from inside k8s pods
+	MgmtDBDSN    string // deprecated: worker DB credentials now come from kafbat-worker-db
 	MgmtAPIURL   string // reachable from inside k8s pods
 	KafkaBrokers string
+	Connection   *connections.Profile
 }
 
 func ptr[T any](v T) *T { return &v }
 
 // CreateDeployment creates (or updates) a worker Deployment.
-func (c *Client) CreateDeployment(ctx context.Context, spec DeploymentSpec) error {
+func (c *Client) workerDeployment(spec DeploymentSpec) (*appsv1.Deployment, error) {
 	labels := map[string]string{
 		"app":    "kafbat-worker",
 		"job-id": spec.JobID,
@@ -100,7 +103,7 @@ func (c *Client) CreateDeployment(ctx context.Context, spec DeploymentSpec) erro
 							Env: []corev1.EnvVar{
 								{Name: "JOB_ID", Value: spec.JobID},
 								{Name: "WORKER_API_TOKEN", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "kafbat-worker-api"}, Key: "token"}}},
-								{Name: "MGMT_DB_DSN", Value: spec.MgmtDBDSN},
+								{Name: "MGMT_DB_DSN", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "kafbat-worker-db"}, Key: "dsn"}}},
 								{Name: "MGMT_API_URL", Value: spec.MgmtAPIURL},
 								{Name: "KAFKA_BROKERS", Value: spec.KafkaBrokers},
 							},
@@ -113,8 +116,50 @@ func (c *Client) CreateDeployment(ctx context.Context, spec DeploymentSpec) erro
 		},
 	}
 
-	_, err := c.cs.AppsV1().Deployments(c.namespace).Create(ctx, d, metav1.CreateOptions{})
+	if spec.Connection != nil {
+		profile := spec.Connection
+		if err := profile.Validate(); err != nil {
+			return nil, err
+		}
+		raw, err := json.Marshal(profile)
+		if err != nil {
+			return nil, err
+		}
+		pod := &d.Spec.Template.Spec
+		pod.ServiceAccountName = profile.ServiceAccount
+		container := &pod.Containers[0]
+		container.Env = append(container.Env, corev1.EnvVar{Name: "DESTINATION_PROFILE_JSON", Value: string(raw)})
+		if profile.Provider != "rds_iam" {
+			volume := corev1.Volume{Name: "destination-credentials"}
+			if profile.Provider == "kubernetes_secret" {
+				volume.VolumeSource.Secret = &corev1.SecretVolumeSource{SecretName: profile.SecretName, DefaultMode: ptr(int32(0400))}
+			} else {
+				volume.VolumeSource.CSI = &corev1.CSIVolumeSource{Driver: "secrets-store.csi.k8s.io", ReadOnly: ptr(true), VolumeAttributes: map[string]string{"secretProviderClass": profile.SecretProviderClass}}
+			}
+			pod.Volumes = append(pod.Volumes, volume)
+			container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{Name: volume.Name, MountPath: "/var/run/kafkaui-credentials", ReadOnly: true})
+		}
+		if profile.CASecretName != "" {
+			pod.Volumes = append(pod.Volumes, corev1.Volume{Name: "destination-ca", VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: profile.CASecretName, Items: []corev1.KeyToPath{{Key: "ca.pem", Path: "ca.pem"}}}}})
+			container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{Name: "destination-ca", MountPath: "/var/run/kafkaui-ca", ReadOnly: true})
+		}
+	}
+
+	return d, nil
+}
+
+func (c *Client) CreateDeployment(ctx context.Context, spec DeploymentSpec) error {
+	d, err := c.workerDeployment(spec)
+	if err != nil {
+		return err
+	}
+	_, err = c.cs.AppsV1().Deployments(c.namespace).Create(ctx, d, metav1.CreateOptions{})
 	if errors.IsAlreadyExists(err) {
+		existing, getErr := c.cs.AppsV1().Deployments(c.namespace).Get(ctx, spec.Name, metav1.GetOptions{})
+		if getErr != nil {
+			return getErr
+		}
+		d.ResourceVersion = existing.ResourceVersion
 		_, err = c.cs.AppsV1().Deployments(c.namespace).Update(ctx, d, metav1.UpdateOptions{})
 	}
 	return err

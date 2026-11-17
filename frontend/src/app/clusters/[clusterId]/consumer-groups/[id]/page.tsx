@@ -1,165 +1,255 @@
 'use client'
 
+import { useState } from 'react'
+import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import { fetchConsumerGroup } from '@/lib/api'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Table, TableHead, TableBody, Th, Td } from '@/components/ui/Table'
 import { formatNumber, stateColor } from '@/lib/utils'
-import { ArrowLeft, AlertCircle } from 'lucide-react'
+import { ArrowLeft, AlertCircle, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
 
 export default function ConsumerGroupDetailPage() {
   const { clusterId, id } = useParams<{ clusterId: string; id: string }>()
   const router = useRouter()
   const groupId = decodeURIComponent(id)
-
-  const { data, isLoading, error } = useQuery({
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [search, setSearch] = useState('')
+  const { data, isLoading, error, isFetching, dataUpdatedAt, refetch } = useQuery({
     queryKey: ['consumer-group', clusterId, groupId],
     queryFn: () => fetchConsumerGroup(clusterId, groupId),
     refetchInterval: 10_000,
   })
-
+  const topics = data?.topicLag ?? []
+  const visible = topics.filter((t) => t.topic.toLowerCase().includes(search.toLowerCase()))
+  const totalLag = topics.reduce((sum, t) => sum + t.totalLag, 0)
+  const uncommitted = topics.reduce(
+    (sum, t) => sum + t.partitions.filter((p) => p.consumerOffset < 0).length,
+    0,
+  )
+  const topicKey = (topic: string) => JSON.stringify([clusterId, groupId, topic])
+  function toggle(topic: string) {
+    topic = topicKey(topic)
+    setExpanded((previous) => {
+      const next = new Set(previous)
+      if (next.has(topic)) next.delete(topic)
+      else next.add(topic)
+      return next
+    })
+  }
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         <button
-          onClick={() => router.push(`/clusters/${clusterId}/consumer-groups`)}
-          className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+          type="button"
+          aria-label="Back to consumer groups"
+          onClick={() => router.push(`/clusters/${encodeURIComponent(clusterId)}/consumer-groups`)}
+          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900 font-mono">{groupId}</h1>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900 font-mono break-all">{groupId}</h1>
             {data && (
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${stateColor(data.state)}`}>
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${stateColor(data.state)}`}
+              >
                 {data.state}
               </span>
             )}
           </div>
           {data && (
-            <p className="text-sm text-gray-500 mt-0.5">
-              {data.members.length} member{data.members.length !== 1 ? 's' : ''}
+            <p className="mt-1 text-sm text-gray-500">
+              {data.members.length} members · {topics.length} topics · {formatNumber(totalLag)}{' '}
+              total known lag
             </p>
           )}
         </div>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-sm disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
-
-      {isLoading && <div className="text-gray-400 py-12 text-center">Loading consumer group…</div>}
-
+      {isLoading && <p className="py-12 text-center text-gray-400">Loading consumer group…</p>}
       {error && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-4">
-          <AlertCircle className="w-5 h-5" />
+        <p
+          role="alert"
+          className="mb-4 flex gap-2 rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {data ? 'Refresh failed. Showing previously fetched data. ' : ''}
           {(error as Error).message}
-        </div>
+        </p>
       )}
-
       {data && (
-        <div className="space-y-6">
-          {data.members.length > 0 && (
-            <Card>
-              <CardHeader><CardTitle>Members ({data.members.length})</CardTitle></CardHeader>
-              <CardContent className="p-0">
+        <div className="space-y-5">
+          <p className="text-xs text-gray-400">
+            Updated {new Date(dataUpdatedAt).toLocaleTimeString()} · refreshes every 10 seconds
+          </p>
+          {uncommitted > 0 && (
+            <p className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              {uncommitted} partitions have no committed offset. Their lag is unknown and excluded
+              from totals.
+            </p>
+          )}
+          <Card>
+            <CardHeader>
+              <CardTitle>Members ({data.members.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {data.members.length === 0 ? (
+                <p className="p-4 text-sm text-gray-500">
+                  No active members. Committed topic offsets may still be retained.
+                </p>
+              ) : (
                 <Table>
                   <TableHead>
-                    <tr><Th>Member ID</Th><Th>Client ID</Th><Th>Client Host</Th></tr>
+                    <tr>
+                      <Th>Member ID</Th>
+                      <Th>Client ID</Th>
+                      <Th>Client Host</Th>
+                    </tr>
                   </TableHead>
                   <TableBody>
                     {data.members.map((m) => (
-                      <tr key={m.memberId} className="hover:bg-gray-50">
-                        <Td className="font-mono text-xs max-w-xs truncate">{m.memberId}</Td>
+                      <tr key={m.memberId}>
+                        <Td className="font-mono text-xs break-all">{m.memberId}</Td>
                         <Td className="font-mono text-xs">{m.clientId}</Td>
                         <Td className="font-mono text-xs">{m.clientHost}</Td>
                       </tr>
                     ))}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
-          )}
-
-          {data.topicLag.length > 0 ? (
-            data.topicLag.map((topicInfo) => (
-              <Card key={topicInfo.topic}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="font-mono">{topicInfo.topic}</CardTitle>
-                    <div className="text-sm text-gray-500">
-                      Total lag:{' '}
-                      <span className={`font-semibold ${
-                        topicInfo.totalLag > 10000 ? 'text-red-600' :
-                        topicInfo.totalLag > 1000  ? 'text-yellow-600' :
-                        topicInfo.totalLag > 0     ? 'text-blue-600' :
-                        'text-green-600'
-                      }`}>
-                        {formatNumber(topicInfo.totalLag)}
-                      </span>
-                    </div>
+              )}
+            </CardContent>
+          </Card>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <input
+              aria-label="Filter associated topics"
+              placeholder="Filter associated topics…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+            <div className="flex gap-3 text-sm">
+              <button
+                type="button"
+                onClick={() => setExpanded(new Set(visible.map((t) => topicKey(t.topic))))}
+                className="text-blue-600 hover:underline"
+              >
+                Expand all
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpanded(new Set())}
+                className="text-gray-600 hover:underline"
+              >
+                Collapse all
+              </button>
+            </div>
+          </div>
+          {visible.map((t) => {
+            const open = expanded.has(topicKey(t.topic))
+            const panelId = `partitions-${encodeURIComponent(t.topic)}`
+            return (
+              <Card key={t.topic}>
+                <div className="flex flex-wrap items-center gap-3 px-5 py-4">
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    aria-controls={panelId}
+                    aria-label={`${open ? 'Collapse' : 'Expand'} partitions for ${t.topic}`}
+                    onClick={() => toggle(t.topic)}
+                    className="rounded p-1 text-gray-500 hover:bg-gray-100"
+                  >
+                    {open ? (
+                      <ChevronDown className="h-5 w-5" />
+                    ) : (
+                      <ChevronRight className="h-5 w-5" />
+                    )}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <Link
+                      href={`/clusters/${encodeURIComponent(clusterId)}/topics/${encodeURIComponent(t.topic)}`}
+                      className="font-mono font-semibold text-blue-600 hover:underline break-all"
+                    >
+                      {t.topic}
+                    </Link>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {t.partitions.length} committed/assigned partitions
+                    </p>
                   </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHead>
-                      <tr>
-                        <Th>Partition</Th>
-                        <Th>Consumer Offset</Th>
-                        <Th>End Offset</Th>
-                        <Th>Lag</Th>
-                        <Th>Progress</Th>
-                      </tr>
-                    </TableHead>
-                    <TableBody>
-                      {topicInfo.partitions.map((p) => {
-                        const pct = p.endOffset > 0
-                          ? Math.min(100, Math.round((p.consumerOffset / p.endOffset) * 100))
-                          : 100
-                        return (
-                          <tr key={p.partitionId} className="hover:bg-gray-50">
-                            <Td><span className="font-mono font-semibold">{p.partitionId}</span></Td>
-                            <Td className="font-mono text-xs">{p.consumerOffset}</Td>
-                            <Td className="font-mono text-xs">{p.endOffset}</Td>
-                            <Td>
-                              <span className={`font-semibold text-sm ${
-                                p.lag > 5000 ? 'text-red-600' :
-                                p.lag > 500  ? 'text-yellow-600' :
-                                p.lag > 0    ? 'text-blue-600' :
-                                'text-green-600'
-                              }`}>
-                                {formatNumber(p.lag)}
-                              </span>
+                  <span className="text-sm text-gray-500">
+                    Topic lag:{' '}
+                    <strong className={t.totalLag > 0 ? 'text-amber-700' : 'text-green-700'}>
+                      {formatNumber(t.totalLag)}
+                    </strong>
+                  </span>
+                </div>
+                {open && (
+                  <div id={panelId} className="border-t border-gray-100">
+                    <Table>
+                      <TableHead>
+                        <tr>
+                          <Th>Partition</Th>
+                          <Th>Consumer Offset</Th>
+                          <Th>End Offset</Th>
+                          <Th>Lag</Th>
+                          <Th>Status</Th>
+                        </tr>
+                      </TableHead>
+                      <TableBody>
+                        {t.partitions.map((p) => (
+                          <tr key={p.partitionId}>
+                            <Td className="font-mono">{p.partitionId}</Td>
+                            <Td className="font-mono text-xs">
+                              {p.consumerOffset < 0
+                                ? 'Not committed'
+                                : p.consumerOffset.toLocaleString()}
                             </Td>
+                            <Td className="font-mono text-xs">{p.endOffset.toLocaleString()}</Td>
                             <Td>
-                              <div className="flex items-center gap-2">
-                                <div className="flex-1 bg-gray-200 rounded-full h-2 min-w-[80px]">
-                                  <div
-                                    className={`h-2 rounded-full transition-all ${
-                                      pct >= 99 ? 'bg-green-500' :
-                                      pct >= 80 ? 'bg-blue-500' :
-                                      pct >= 50 ? 'bg-yellow-500' :
-                                      'bg-red-500'
-                                    }`}
-                                    style={{ width: `${pct}%` }}
-                                  />
-                                </div>
-                                <span className="text-xs text-gray-500 w-10 text-right">{pct}%</span>
-                              </div>
+                              <strong
+                                className={
+                                  p.consumerOffset < 0
+                                    ? 'text-gray-400'
+                                    : p.lag > 0
+                                      ? 'text-amber-700'
+                                      : 'text-green-700'
+                                }
+                              >
+                                {p.consumerOffset < 0 ? 'Unknown' : formatNumber(p.lag)}
+                              </strong>
+                            </Td>
+                            <Td className="text-sm">
+                              {p.consumerOffset < 0
+                                ? 'No committed offset'
+                                : p.lag === 0
+                                  ? 'Caught up'
+                                  : 'Behind'}
                             </Td>
                           </tr>
-                        )
-                      })}
-                    </TableBody>
-                  </Table>
-                </CardContent>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </Card>
-            ))
-          ) : (
-            <Card>
-              <CardContent>
-                <div className="py-8 text-center text-gray-400 text-sm">
-                  No committed offsets found for this consumer group.
-                </div>
-              </CardContent>
-            </Card>
+            )
+          })}
+          {visible.length === 0 && (
+            <p className="py-8 text-center text-sm text-gray-400">
+              {topics.length
+                ? 'No topics match your filter.'
+                : 'No committed topic offsets found for this group.'}
+            </p>
           )}
         </div>
       )}

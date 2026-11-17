@@ -1,9 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
-import { fetchTopic } from '@/lib/api'
+import { fetchTopic, fetchTopicConsumers } from '@/lib/api'
 import { Header } from '@/components/layout/Header'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -15,8 +16,8 @@ import { SchemaEditor } from '@/components/schema/SchemaEditor'
 import { formatNumber } from '@/lib/utils'
 import { ArrowLeft, Send, AlertCircle } from 'lucide-react'
 
-const TABS = ['Partitions', 'Messages', 'Schema', 'Configuration'] as const
-type Tab = typeof TABS[number]
+const TABS = ['Partitions', 'Messages', 'Consumers', 'Schema', 'Configuration'] as const
+type Tab = (typeof TABS)[number]
 
 export default function TopicDetailPage() {
   const { clusterId, name } = useParams<{ clusterId: string; name: string }>()
@@ -28,6 +29,13 @@ export default function TopicDetailPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['topic', clusterId, topicName],
     queryFn: () => fetchTopic(clusterId, topicName),
+  })
+
+  const consumers = useQuery({
+    queryKey: ['topic-consumers', clusterId, topicName],
+    queryFn: () => fetchTopicConsumers(clusterId, topicName),
+    enabled: activeTab === 'Consumers',
+    refetchInterval: activeTab === 'Consumers' ? 15_000 : false,
   })
 
   return (
@@ -50,7 +58,9 @@ export default function TopicDetailPage() {
           </div>
           {data && (
             <p className="text-sm text-gray-500 mt-0.5">
-              {data.partitions.length} partition{data.partitions.length !== 1 ? 's' : ''} &middot; Replication {data.replicationFactor}
+              {data.partitions.length} partition
+              {data.partitions.length !== 1 ? 's' : ''} &middot; Replication{' '}
+              {data.replicationFactor}
             </p>
           )}
         </div>
@@ -88,6 +98,68 @@ export default function TopicDetailPage() {
             </nav>
           </div>
 
+          {activeTab === 'Consumers' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Consumer groups associated with this topic</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-4 text-xs text-gray-500">
+                  Includes active subscriptions and retained committed offsets. Lag is for this
+                  topic only.
+                </p>
+                {consumers.isLoading && <p className="text-sm text-gray-500">Loading consumers…</p>}
+                {consumers.error && (
+                  <p role="alert" className="text-sm text-red-600">
+                    Could not load consumers: {(consumers.error as Error).message}
+                  </p>
+                )}
+                {consumers.data && consumers.data.length === 0 && (
+                  <p className="py-6 text-sm text-gray-500">
+                    No associated consumer groups found. Uncommitted inactive subscriptions cannot
+                    be discovered from Kafka.
+                  </p>
+                )}
+                {!!consumers.data?.length && (
+                  <Table>
+                    <TableHead>
+                      <tr>
+                        <Th>Consumer group</Th>
+                        <Th>State</Th>
+                        <Th>Members</Th>
+                        <Th>Known topic lag</Th>
+                      </tr>
+                    </TableHead>
+                    <TableBody>
+                      {consumers.data.map((group) => (
+                        <tr key={group.groupId}>
+                          <Td>
+                            <Link
+                              className="font-mono text-blue-600 hover:underline"
+                              href={`/clusters/${encodeURIComponent(clusterId)}/consumer-groups/${encodeURIComponent(group.groupId)}`}
+                            >
+                              {group.groupId}
+                            </Link>
+                          </Td>
+                          <Td>{group.state}</Td>
+                          <Td>{group.memberCount}</Td>
+                          <Td>
+                            {formatNumber(group.topicLag)}
+                            {!!group.uncommittedPartitions && (
+                              <p className="text-xs text-amber-700">
+                                {group.uncommittedPartitions} partitions uncommitted
+                              </p>
+                            )}
+                          </Td>
+                        </tr>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {activeTab === 'Partitions' && (
             <Card>
               <CardContent className="p-0">
@@ -106,17 +178,33 @@ export default function TopicDetailPage() {
                   <TableBody>
                     {data.partitions.map((p) => (
                       <tr key={p.partitionId} className="hover:bg-gray-50">
-                        <Td><span className="font-mono font-semibold text-gray-900">{p.partitionId}</span></Td>
-                        <Td><Badge variant="info">Broker #{p.leader}</Badge></Td>
-                        <Td><span className="font-mono text-xs text-gray-600">[{p.replicas.join(', ')}]</span></Td>
                         <Td>
-                          <span className={`font-mono text-xs ${p.isr.length < p.replicas.length ? 'text-red-600' : 'text-green-600'}`}>
+                          <span className="font-mono font-semibold text-gray-900">
+                            {p.partitionId}
+                          </span>
+                        </Td>
+                        <Td>
+                          <Badge variant="info">Broker #{p.leader}</Badge>
+                        </Td>
+                        <Td>
+                          <span className="font-mono text-xs text-gray-600">
+                            [{p.replicas.join(', ')}]
+                          </span>
+                        </Td>
+                        <Td>
+                          <span
+                            className={`font-mono text-xs ${p.isr.length < p.replicas.length ? 'text-red-600' : 'text-green-600'}`}
+                          >
                             [{p.isr.join(', ')}]
                           </span>
                         </Td>
                         <Td className="font-mono text-xs">{p.offsetBegin}</Td>
                         <Td className="font-mono text-xs">{p.offsetEnd}</Td>
-                        <Td><span className="text-sm font-medium">{formatNumber(p.messageCount)}</span></Td>
+                        <Td>
+                          <span className="text-sm font-medium">
+                            {formatNumber(p.messageCount)}
+                          </span>
+                        </Td>
                       </tr>
                     ))}
                   </TableBody>
@@ -133,20 +221,25 @@ export default function TopicDetailPage() {
             />
           )}
 
-          {activeTab === 'Schema' && (
-            <SchemaEditor clusterId={clusterId} topicName={topicName} />
-          )}
+          {activeTab === 'Schema' && <SchemaEditor clusterId={clusterId} topicName={topicName} />}
 
           {activeTab === 'Configuration' && (
             <Card>
-              <CardHeader><CardTitle>Topic Configuration (non-default values)</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>Topic Configuration (non-default values)</CardTitle>
+              </CardHeader>
               <CardContent className="p-0">
                 {Object.keys(data.config).length === 0 ? (
-                  <div className="py-8 text-center text-gray-400 text-sm">All values are at default settings.</div>
+                  <div className="py-8 text-center text-gray-400 text-sm">
+                    All values are at default settings.
+                  </div>
                 ) : (
                   <Table>
                     <TableHead>
-                      <tr><Th>Key</Th><Th>Value</Th></tr>
+                      <tr>
+                        <Th>Key</Th>
+                        <Th>Value</Th>
+                      </tr>
                     </TableHead>
                     <TableBody>
                       {Object.entries(data.config).map(([k, v]) => (

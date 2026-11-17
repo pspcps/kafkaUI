@@ -2,6 +2,7 @@
 base.py — abstract base class for all replication destinations.
 """
 import json
+import re
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 
@@ -86,6 +87,10 @@ def now_utc() -> datetime:
 
 class BaseDestination(ABC):
     def __init__(self, config: dict, fields: list):
+        if config.get('_profile', {}).get('destinationType') != 'mongodb':
+            for field in fields:
+                if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,62}', field['name']):
+                    raise ValueError('SQL destination fields must be simple identifiers')
         self.config = config
         self.fields = fields  # list of dicts from schema_fields table
 

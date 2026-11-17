@@ -1,0 +1,6 @@
+[
+  {"id":"analytics-iam","name":"Analytics PostgreSQL · RDS IAM","destinationType":"postgresql","provider":"rds_iam","serviceAccount":"analytics-worker","host":"analytics.example.us-east-1.rds.amazonaws.com","port":5432,"database":"analytics","username":"kafka_writer","region":"us-east-1","caSecretName":"rds-trust"},
+  {"id":"warehouse-vault","name":"Warehouse · Vault","destinationType":"postgresql","provider":"vault","serviceAccount":"warehouse-worker","secretProviderClass":"warehouse-vault","caSecretName":"warehouse-trust"},
+  {"id":"reporting-secrets","name":"Reporting · AWS Secrets Manager","destinationType":"mysql","provider":"aws_secrets_manager","serviceAccount":"reporting-worker","secretProviderClass":"reporting-aws","caSecretName":"rds-trust"},
+  {"id":"documents-k8s","name":"Documents · Kubernetes Secret","destinationType":"mongodb","provider":"kubernetes_secret","serviceAccount":"documents-worker","secretName":"documents-credentials"}
+]

@@ -2,6 +2,7 @@ package api
 
 import (
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prakash/kafbat-ui/internal/api/handlers"
@@ -55,6 +56,7 @@ func NewRouter(
 
 	clustersH := handlers.NewClustersHandler(registry)
 	protected.GET("/clusters", clustersH.ListClusters)
+	protected.GET("/connections", middleware.RequireRole(db.RoleAdmin), handlers.ListConnections)
 
 	if schemaRepo != nil {
 		schemaH := handlers.NewSchemaHandler(schemaRepo, validatorCache)
@@ -78,14 +80,22 @@ func NewRouter(
 		clusterGroup.POST("/topics/:name/messages", topicH.ProduceMessage)
 
 		cgH := handlers.NewConsumerGroupHandler()
+		clusterGroup.GET("/topics/:name/consumer-groups", cgH.ListTopicConsumers)
 		clusterGroup.GET("/consumer-groups", cgH.ListConsumerGroups)
 		clusterGroup.GET("/consumer-groups/:id", cgH.GetConsumerGroup)
 	}
 
-	if k8sClient != nil && jobRepo != nil {
+	if jobRepo != nil {
 		jobH := handlers.NewJobHandler(jobRepo, k8sClient, mgmtDSN)
 		// Job responses currently include destination credentials; restrict all job access.
 		jobs := protected.Group("/jobs", middleware.RequireRole(db.RoleAdmin))
+		jobs.Use(func(c *gin.Context) {
+			if k8sClient == nil && (c.Request.Method != "GET" || strings.HasSuffix(c.FullPath(), "/logs")) {
+				c.AbortWithStatusJSON(503, gin.H{"error": "workers_unavailable", "message": "Replication workers are unavailable; check Kubernetes configuration"})
+				return
+			}
+			c.Next()
+		})
 		{
 			jobs.GET("", jobH.List)
 			jobs.POST("", jobH.Create)

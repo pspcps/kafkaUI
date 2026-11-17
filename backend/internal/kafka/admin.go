@@ -259,6 +259,9 @@ func (a *AdminClient) ListConsumerGroups() ([]models.ConsumerGroupSummary, error
 	}
 	sort.Strings(groupIDs)
 
+	if len(groupIDs) == 0 {
+		return []models.ConsumerGroupSummary{}, nil
+	}
 	// Describe groups to get state and member count
 	descriptions, err := a.admin.DescribeConsumerGroups(groupIDs)
 	if err != nil {
@@ -267,11 +270,18 @@ func (a *AdminClient) ListConsumerGroups() ([]models.ConsumerGroupSummary, error
 
 	summaries := make([]models.ConsumerGroupSummary, 0, len(descriptions))
 	for _, desc := range descriptions {
-		summaries = append(summaries, models.ConsumerGroupSummary{
-			GroupID:     desc.GroupId,
-			State:       desc.State,
-			MemberCount: len(desc.Members),
-		})
+		if desc.Err != sarama.ErrNoError {
+			return nil, desc.Err
+		}
+		detail, err := a.GetConsumerGroupDetail(desc.GroupId)
+		if err != nil {
+			return nil, err
+		}
+		var totalLag int64
+		for _, topic := range detail.TopicLag {
+			totalLag += topic.TotalLag
+		}
+		summaries = append(summaries, models.ConsumerGroupSummary{GroupID: desc.GroupId, State: desc.State, MemberCount: len(desc.Members), TotalLag: totalLag})
 	}
 
 	return summaries, nil
@@ -435,6 +445,9 @@ func (a *AdminClient) GetConsumerGroupDetail(groupID string) (*models.ConsumerGr
 		return nil, fmt.Errorf("failed to describe group %q: %w", groupID, err)
 	}
 	desc := descriptions[0]
+	if desc.Err != sarama.ErrNoError {
+		return nil, desc.Err
+	}
 
 	members := make([]models.ConsumerMember, 0, len(desc.Members))
 	for _, m := range desc.Members {
@@ -447,6 +460,9 @@ func (a *AdminClient) GetConsumerGroupDetail(groupID string) (*models.ConsumerGr
 
 	// Get committed offsets
 	offsets, err := a.admin.ListConsumerGroupOffsets(groupID, nil)
+	if err == nil && offsets.Err != sarama.ErrNoError {
+		return nil, offsets.Err
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get offsets for group %q: %w", groupID, err)
 	}
@@ -464,13 +480,17 @@ func (a *AdminClient) GetConsumerGroupDetail(groupID string) (*models.ConsumerGr
 			}
 			endOffset, err := a.client.GetOffset(topic, partID, sarama.OffsetNewest)
 			if err != nil {
-				endOffset = 0
+				return nil, fmt.Errorf("read end offset for %s partition %d: %w", topic, partID, err)
 			}
 			lag := endOffset - block.Offset
 			if lag < 0 {
 				lag = 0
 			}
-			lagInfo.TotalLag += lag
+			if block.Offset < 0 {
+				lag = -1
+			} else {
+				lagInfo.TotalLag += lag
+			}
 			lagInfo.Partitions = append(lagInfo.Partitions, models.PartitionLag{
 				PartitionID:    partID,
 				ConsumerOffset: block.Offset,
@@ -486,6 +506,38 @@ func (a *AdminClient) GetConsumerGroupDetail(groupID string) (*models.ConsumerGr
 		topicLagMap[topic] = lagInfo
 	}
 
+	for _, member := range desc.Members {
+		metadata, err := member.GetMemberMetadata()
+		if err != nil {
+			return nil, err
+		}
+		for _, topic := range metadata.Topics {
+			info, ok := topicLagMap[topic]
+			if !ok {
+				info = &models.TopicLagInfo{Topic: topic, Partitions: []models.PartitionLag{}}
+				topicLagMap[topic] = info
+			}
+			parts, err := a.client.Partitions(topic)
+			if err != nil {
+				return nil, err
+			}
+			seen := map[int32]bool{}
+			for _, p := range info.Partitions {
+				seen[p.PartitionID] = true
+			}
+			for _, part := range parts {
+				if !seen[part] {
+					end, err := a.client.GetOffset(topic, part, sarama.OffsetNewest)
+					if err != nil {
+						return nil, err
+					}
+					info.Partitions = append(info.Partitions, models.PartitionLag{PartitionID: part, ConsumerOffset: -1, EndOffset: end, Lag: -1})
+				}
+			}
+			sort.Slice(info.Partitions, func(i, j int) bool { return info.Partitions[i].PartitionID < info.Partitions[j].PartitionID })
+		}
+	}
+
 	topicLags := make([]models.TopicLagInfo, 0, len(topicLagMap))
 	for _, tl := range topicLagMap {
 		topicLags = append(topicLags, *tl)
@@ -495,9 +547,107 @@ func (a *AdminClient) GetConsumerGroupDetail(groupID string) (*models.ConsumerGr
 	})
 
 	return &models.ConsumerGroupDetail{
-		GroupID: desc.GroupId,
-		State:   desc.State,
-		Members: members,
+		GroupID:  desc.GroupId,
+		State:    desc.State,
+		Members:  members,
 		TopicLag: topicLags,
 	}, nil
+}
+
+// TopicConsumerGroup is a consumer group associated with a particular topic.
+type TopicConsumerGroup struct {
+	GroupID               string `json:"groupId"`
+	State                 string `json:"state"`
+	MemberCount           int    `json:"memberCount"`
+	TopicLag              int64  `json:"topicLag"`
+	UncommittedPartitions int    `json:"uncommittedPartitions"`
+}
+
+func (a *AdminClient) ListTopicConsumers(topic string) ([]TopicConsumerGroup, error) {
+	parts, err := a.client.Partitions(topic)
+	if err != nil {
+		return nil, err
+	}
+	ends := make(map[int32]int64, len(parts))
+	for _, partition := range parts {
+		end, err := a.client.GetOffset(topic, partition, sarama.OffsetNewest)
+		if err != nil {
+			return nil, err
+		}
+		ends[partition] = end
+	}
+
+	groups, err := a.admin.ListConsumerGroups()
+	if err != nil {
+		return nil, err
+	}
+	result := make([]TopicConsumerGroup, 0)
+	if len(groups) == 0 {
+		return result, nil
+	}
+	ids := make([]string, 0, len(groups))
+	for id := range groups {
+		ids = append(ids, id)
+	}
+	descriptions, err := a.admin.DescribeConsumerGroups(ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, group := range descriptions {
+		if group.Err != sarama.ErrNoError {
+			return nil, group.Err
+		}
+		if group.ProtocolType != "" && group.ProtocolType != "consumer" {
+			continue
+		}
+		associated := false
+		for _, member := range group.Members {
+			metadata, err := member.GetMemberMetadata()
+			if err != nil {
+				return nil, fmt.Errorf("decode consumer subscription: %w", err)
+			}
+			for _, name := range metadata.Topics {
+				if name == topic {
+					associated = true
+				}
+			}
+		}
+		offsets, err := a.admin.ListConsumerGroupOffsets(group.GroupId, nil)
+		if err == nil && offsets.Err != sarama.ErrNoError {
+			return nil, offsets.Err
+		}
+		if err != nil {
+			return nil, err
+		}
+		blocks, hasOffsets := offsets.Blocks[topic]
+		if hasOffsets {
+			associated = true
+		}
+		if !associated {
+			continue
+		}
+		var lag int64
+		unknown := 0
+		for _, partition := range parts {
+			block, ok := blocks[partition]
+			if !ok {
+				unknown++
+				continue
+			}
+			if block.Err != sarama.ErrNoError {
+				return nil, block.Err
+			}
+			if block.Offset < 0 {
+				unknown++
+				continue
+			}
+			if ends[partition] > block.Offset {
+				lag += ends[partition] - block.Offset
+			}
+		}
+		result = append(result, TopicConsumerGroup{GroupID: group.GroupId, State: group.State, MemberCount: len(group.Members), TopicLag: lag, UncommittedPartitions: unknown})
+
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].GroupID < result[j].GroupID })
+	return result, nil
 }

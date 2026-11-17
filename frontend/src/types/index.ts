@@ -111,8 +111,15 @@ export interface ProduceMessageRequest {
 // ── Schema ────────────────────────────────────────────────────────────────────
 
 export type FieldType =
-  | 'string' | 'int' | 'long' | 'float' | 'double'
-  | 'boolean' | 'timestamp' | 'bytes' | 'json'
+  | 'string'
+  | 'int'
+  | 'long'
+  | 'float'
+  | 'double'
+  | 'boolean'
+  | 'timestamp'
+  | 'bytes'
+  | 'json'
 
 export type FieldSource = 'value' | 'header' | 'key'
 
@@ -155,14 +162,15 @@ export interface SchemaInput {
 export type DestinationType = 'postgresql' | 'mysql' | 'sqlserver' | 'mongodb'
 
 export interface DestinationConfig {
-  host: string
-  port: number
-  database: string
-  username: string
-  password: string
-  tableName?: string   // SQL targets
-  collection?: string  // MongoDB
-  schema?: string      // SQL Server schema
+  connectionId?: string
+  host?: string
+  port?: number
+  database?: string
+  username?: string
+  password?: string
+  tableName?: string // SQL targets
+  collection?: string // MongoDB
+  schema?: string // SQL Server schema
 }
 
 export interface JobError {
@@ -211,4 +219,19 @@ export interface ReplicationJob {
   createdAt: string
   updatedAt: string
   metrics?: ConsumerMetric[]
+}
+
+export interface TopicConsumerGroup {
+  groupId: string
+  state: string
+  memberCount: number
+  topicLag: number
+  uncommittedPartitions?: number
+}
+
+export interface ConnectionProfile {
+  id: string
+  name: string
+  destinationType: DestinationType
+  provider: 'rds_iam' | 'vault' | 'aws_secrets_manager' | 'kubernetes_secret'
 }

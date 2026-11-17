@@ -30,7 +30,7 @@ func TestViewerCannotReachMutationHandlers(t *testing.T) {
 		{"POST", "/api/v1/jobs"}, {"PATCH", "/api/v1/jobs/id"},
 		{"PUT", "/api/v1/jobs/id/replicas"}, {"PUT", "/api/v1/jobs/id/destination"},
 		{"DELETE", "/api/v1/jobs/id"}, {"POST", "/api/v1/jobs/id/reset-offset"},
-		{"GET", "/api/v1/jobs"}, {"GET", "/api/v1/jobs/id"},
+		{"GET", "/api/v1/connections"}, {"GET", "/api/v1/jobs"}, {"GET", "/api/v1/jobs/id"},
 	} {
 		t.Run(tc.method+tc.path, func(t *testing.T) {
 			req := httptest.NewRequest(tc.method, tc.path, nil)
@@ -53,5 +53,18 @@ func TestWorkerRoutesRequireCredential(t *testing.T) {
 		if w.Code != 401 {
 			t.Fatalf("%s got %d want 401", path, w.Code)
 		}
+	}
+}
+
+func TestUnavailableWorkersReturnActionableError(t *testing.T) {
+	cfg := &auth.Config{Secret: []byte(strings.Repeat("x", 32)), TTL: time.Hour}
+	r := NewRouter(kafka.NewRegistry(), nil, &db.JobRepo{}, nil, cfg, validation.NewCache(), nil, "")
+	token, _, _ := cfg.Sign("admin-id", "admin", "admin")
+	req := httptest.NewRequest("POST", "/api/v1/jobs", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != 503 || !strings.Contains(w.Body.String(), "workers_unavailable") {
+		t.Fatalf("expected explicit worker capability error, got %d %s", w.Code, w.Body.String())
 	}
 }
