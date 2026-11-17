@@ -4,7 +4,7 @@ RUN apk add --no-cache git
 
 WORKDIR /app
 COPY . .
-RUN go mod tidy && CGO_ENABLED=0 GOOS=linux go build -o kafbat-ui-server ./cmd/server
+RUN go mod download && CGO_ENABLED=0 GOOS=linux go build -o kafbat-ui-server ./cmd/server
 
 FROM alpine:3.19
 RUN apk add --no-cache ca-certificates tzdata

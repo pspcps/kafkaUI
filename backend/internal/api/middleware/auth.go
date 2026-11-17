@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
 	"net/http"
 	"strings"
 
@@ -24,7 +26,7 @@ func JWTAuth(jwtConf *auth.Config) gin.HandlerFunc {
 		}
 		claims, err := jwtConf.Verify(parts[1])
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid_token", "message": err.Error()})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid_token", "message": "invalid or expired token"})
 			return
 		}
 		c.Set("claims", claims)
@@ -49,5 +51,40 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 			}
 		}
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden", "message": "insufficient role"})
+	}
+}
+
+// AuthorizeAccess denies unknown roles and makes viewers read-only.
+func AuthorizeAccess() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		claims, ok := c.Get("claims")
+		principal, valid := claims.(*auth.Claims)
+		if !ok || !valid || principal == nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+		if principal.Role == "admin" || (principal.Role == "viewer" && (c.Request.Method == http.MethodGet || c.Request.Method == http.MethodHead)) {
+			c.Next()
+			return
+		}
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden", "message": "administrator access required"})
+	}
+}
+
+// WorkerAuth uses a separate credential from human login tokens.
+// An unset or short credential disables callbacks instead of leaving them public.
+func WorkerAuth(token string) gin.HandlerFunc {
+	expected := sha256.Sum256([]byte("Bearer " + token))
+	return func(c *gin.Context) {
+		if len(token) < 32 {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "worker_auth_not_configured"})
+			return
+		}
+		got := sha256.Sum256([]byte(c.GetHeader("Authorization")))
+		if subtle.ConstantTimeCompare(expected[:], got[:]) != 1 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid_worker_token"})
+			return
+		}
+		c.Next()
 	}
 }

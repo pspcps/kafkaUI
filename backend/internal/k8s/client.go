@@ -96,9 +96,10 @@ func (c *Client) CreateDeployment(ctx context.Context, spec DeploymentSpec) erro
 						{
 							Name:            "worker",
 							Image:           c.image,
-							ImagePullPolicy: corev1.PullNever, // use local Docker Desktop image
+							ImagePullPolicy: corev1.PullIfNotPresent,
 							Env: []corev1.EnvVar{
 								{Name: "JOB_ID", Value: spec.JobID},
+								{Name: "WORKER_API_TOKEN", ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "kafbat-worker-api"}, Key: "token"}}},
 								{Name: "MGMT_DB_DSN", Value: spec.MgmtDBDSN},
 								{Name: "MGMT_API_URL", Value: spec.MgmtAPIURL},
 								{Name: "KAFKA_BROKERS", Value: spec.KafkaBrokers},

@@ -26,6 +26,7 @@ def report(job_id: str, partition_id: int, current_offset: int,
         resp = requests.post(
             f"{_API_BASE}/api/v1/jobs/{job_id}/metrics",
             json=payload,
+            headers={"Authorization": f"Bearer {os.environ.get('WORKER_API_TOKEN', '')}"},
             timeout=5,
         )
         resp.raise_for_status()

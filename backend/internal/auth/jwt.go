@@ -38,6 +38,9 @@ func LoadConfig() (*Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid JWT_TTL %q: %w", v, err)
 		}
+		if d <= 0 {
+			return nil, errors.New("JWT_TTL must be positive")
+		}
 		ttl = d
 	}
 	return &Config{Secret: []byte(secret), TTL: ttl}, nil
@@ -68,15 +71,15 @@ func (c *Config) Sign(userID, username, role string) (string, time.Time, error) 
 func (c *Config) Verify(tokenStr string) (*Claims, error) {
 	claims := &Claims{}
 	tok, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+		if t.Method != jwt.SigningMethodHS256 {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return c.Secret, nil
-	})
+	}, jwt.WithValidMethods([]string{"HS256"}), jwt.WithExpirationRequired(), jwt.WithIssuer("kafbat-ui"))
 	if err != nil {
 		return nil, err
 	}
-	if !tok.Valid {
+	if !tok.Valid || claims.UserID == "" || claims.Username == "" {
 		return nil, errors.New("invalid token")
 	}
 	return claims, nil

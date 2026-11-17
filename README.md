@@ -2,6 +2,8 @@
 
 A Kafka cluster management UI built with **Next.js 14** (frontend) and **Go + Gin** (backend), inspired by Kafbat UI.
 
+See [enterprise readiness and security rollout notes](docs/ENTERPRISE_READINESS.md) for the current adoption blockers, worker credential setup, and delivery roadmap.
+
 ## Features
 
 - **Cluster Dashboard** — broker count, topic count, consumer groups, controller info
