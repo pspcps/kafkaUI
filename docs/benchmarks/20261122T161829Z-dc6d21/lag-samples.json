@@ -1,0 +1,542 @@
+[
+  {
+    "elapsed": 0.20506448699961766,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": -1001,
+        "low": 0,
+        "high": 1,
+        "lag": 1,
+        "uncommitted": true
+      },
+      {
+        "partition": 1,
+        "committed": -1001,
+        "low": 0,
+        "high": 1,
+        "lag": 1,
+        "uncommitted": true
+      },
+      {
+        "partition": 2,
+        "committed": -1001,
+        "low": 0,
+        "high": 0,
+        "lag": 0,
+        "uncommitted": true
+      }
+    ],
+    "total_lag": 2
+  },
+  {
+    "elapsed": 1.260012786002335,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 71,
+        "low": 0,
+        "high": 71,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 70,
+        "low": 0,
+        "high": 71,
+        "lag": 1,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 70,
+        "low": 0,
+        "high": 71,
+        "lag": 1,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 2
+  },
+  {
+    "elapsed": 2.2899608940024336,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 140,
+        "low": 0,
+        "high": 140,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 139,
+        "low": 0,
+        "high": 140,
+        "lag": 1,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 139,
+        "low": 0,
+        "high": 139,
+        "lag": 0,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 4.331654732002789,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 209,
+        "low": 0,
+        "high": 209,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 208,
+        "low": 0,
+        "high": 209,
+        "lag": 1,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 208,
+        "low": 0,
+        "high": 209,
+        "lag": 1,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 2
+  },
+  {
+    "elapsed": 5.373172851999698,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 345,
+        "low": 0,
+        "high": 345,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 345,
+        "low": 0,
+        "high": 345,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 344,
+        "low": 0,
+        "high": 345,
+        "lag": 1,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 6.451184372999705,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 417,
+        "low": 0,
+        "high": 417,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 417,
+        "low": 0,
+        "high": 417,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 416,
+        "low": 0,
+        "high": 417,
+        "lag": 1,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 7.532091856999614,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 489,
+        "low": 0,
+        "high": 489,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 489,
+        "low": 0,
+        "high": 489,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 488,
+        "low": 0,
+        "high": 489,
+        "lag": 1,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 8.645709026000986,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 563,
+        "low": 0,
+        "high": 563,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 563,
+        "low": 0,
+        "high": 563,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 562,
+        "low": 0,
+        "high": 563,
+        "lag": 1,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 9.757806784000422,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 637,
+        "low": 0,
+        "high": 638,
+        "lag": 1,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 637,
+        "low": 0,
+        "high": 637,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 637,
+        "low": 0,
+        "high": 637,
+        "lag": 0,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 10.786219884001184,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 706,
+        "low": 0,
+        "high": 706,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 706,
+        "low": 0,
+        "high": 706,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 705,
+        "low": 0,
+        "high": 706,
+        "lag": 1,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 11.860883708002802,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 778,
+        "low": 0,
+        "high": 778,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 777,
+        "low": 0,
+        "high": 778,
+        "lag": 1,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 777,
+        "low": 0,
+        "high": 777,
+        "lag": 0,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 12.893336336001084,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 846,
+        "low": 0,
+        "high": 847,
+        "lag": 1,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 846,
+        "low": 0,
+        "high": 846,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 846,
+        "low": 0,
+        "high": 846,
+        "lag": 0,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 13.931179227001849,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 916,
+        "low": 0,
+        "high": 916,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 915,
+        "low": 0,
+        "high": 916,
+        "lag": 1,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 915,
+        "low": 0,
+        "high": 915,
+        "lag": 0,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 14.963442500000383,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 984,
+        "low": 0,
+        "high": 985,
+        "lag": 1,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 983,
+        "low": 0,
+        "high": 984,
+        "lag": 1,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 983,
+        "low": 0,
+        "high": 984,
+        "lag": 1,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 3
+  },
+  {
+    "elapsed": 16.03547160800008,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 1056,
+        "low": 0,
+        "high": 1056,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 1056,
+        "low": 0,
+        "high": 1056,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 1055,
+        "low": 0,
+        "high": 1056,
+        "lag": 1,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 17.06215492600313,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 1124,
+        "low": 0,
+        "high": 1125,
+        "lag": 1,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 1124,
+        "low": 0,
+        "high": 1124,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 1124,
+        "low": 0,
+        "high": 1124,
+        "lag": 0,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 18.192515071001253,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 1200,
+        "low": 0,
+        "high": 1200,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 1199,
+        "low": 0,
+        "high": 1200,
+        "lag": 1,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 1199,
+        "low": 0,
+        "high": 1199,
+        "lag": 0,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 1
+  },
+  {
+    "elapsed": 19.319483601000684,
+    "partitions": [
+      {
+        "partition": 0,
+        "committed": 1275,
+        "low": 0,
+        "high": 1275,
+        "lag": 0,
+        "uncommitted": false
+      },
+      {
+        "partition": 1,
+        "committed": 1274,
+        "low": 0,
+        "high": 1275,
+        "lag": 1,
+        "uncommitted": false
+      },
+      {
+        "partition": 2,
+        "committed": 1274,
+        "low": 0,
+        "high": 1275,
+        "lag": 1,
+        "uncommitted": false
+      }
+    ],
+    "total_lag": 2
+  }
+]

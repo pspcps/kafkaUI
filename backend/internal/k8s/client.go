@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/prakash/kafbat-ui/internal/connections"
 	"os"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -125,6 +126,12 @@ func (c *Client) workerDeployment(spec DeploymentSpec) (*appsv1.Deployment, erro
 		if err != nil {
 			return nil, err
 		}
+		// Operator-owned delivery policy; record payloads cannot choose discard behavior.
+		for _, name := range []string{"DELIVERY_FAILURE_POLICY", "DELIVERY_DLQ_TOPIC", "DELIVERY_DLQ_TIMEOUT_SECONDS", "DELIVERY_MAX_ATTEMPTS", "DELIVERY_RETRY_BASE_SECONDS", "DELIVERY_RETRY_CAP_SECONDS"} {
+			if value := os.Getenv(name); value != "" {
+				d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{Name: name, Value: value})
+			}
+		}
 		pod := &d.Spec.Template.Spec
 		pod.ServiceAccountName = profile.ServiceAccount
 		container := &pod.Containers[0]
@@ -172,6 +179,22 @@ func (c *Client) ScaleDeployment(ctx context.Context, name string, replicas int3
 		return err
 	}
 	d.Spec.Replicas = ptr(replicas)
+	_, err = c.cs.AppsV1().Deployments(c.namespace).Update(ctx, d, metav1.UpdateOptions{})
+	return err
+}
+
+// ResumeDeployment replaces paused worker processes even if replicas were already
+// nonzero: an in-process delivery pause cannot be released by scaling alone.
+func (c *Client) ResumeDeployment(ctx context.Context, name string, replicas int32) error {
+	d, err := c.cs.AppsV1().Deployments(c.namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	d.Spec.Replicas = ptr(replicas)
+	if d.Spec.Template.Annotations == nil {
+		d.Spec.Template.Annotations = map[string]string{}
+	}
+	d.Spec.Template.Annotations["kafkaui.io/resumed-at"] = time.Now().UTC().Format(time.RFC3339Nano)
 	_, err = c.cs.AppsV1().Deployments(c.namespace).Update(ctx, d, metav1.UpdateOptions{})
 	return err
 }

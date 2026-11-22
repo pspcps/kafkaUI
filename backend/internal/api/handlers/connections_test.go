@@ -33,3 +33,12 @@ func TestInlineCredentialRequestRejected(t *testing.T) {
 		t.Fatal("invalid identifier accepted")
 	}
 }
+
+func TestUnprovenDestinationsCannotStartNewJobs(t *testing.T) {
+	for _, kind := range []string{"mysql", "mongodb", "sqlserver"} {
+		_, err := validateDestination(db.DestinationConfig{ConnectionID: "approved"}, kind)
+		if err == nil || !strings.Contains(err.Error(), "PostgreSQL only") {
+			t.Fatalf("unsafe destination %s accepted: %v", kind, err)
+		}
+	}
+}

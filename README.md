@@ -6,6 +6,8 @@ See [enterprise readiness and security rollout notes](docs/ENTERPRISE_READINESS.
 
 See [managed replication connections](docs/MANAGED_CONNECTIONS.md) for the new connection profile model and migration requirements.
 
+See [the delivery contract](docs/DELIVERY_CONTRACT.md) for failure, restart, deduplication and replay behavior. Run `./scripts/delivery_lab.sh all` for the [real Kafka/PostgreSQL integration and performance lab](docs/DELIVERY_LAB.md).
+
 ## Features
 
 - **Cluster Dashboard** — broker count, topic count, consumer groups, controller info

@@ -1,0 +1,447 @@
+{
+  "run_id": "20261122T161829Z-dc6d21",
+  "status": "PASS",
+  "hardware_software": {
+    "os": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "architecture": "x86_64",
+    "cpu_model": "AMD EPYC 9V74 80-Core Processor",
+    "visible_vcpus": 3,
+    "memory_bytes": 10452459520,
+    "python": "3.12.14",
+    "packages": {
+      "confluent-kafka": "2.5.3",
+      "psycopg2-binary": "2.9.9",
+      "psutil": "7.0.0"
+    },
+    "librdkafka": "2.5.3",
+    "limits": {
+      "kafka_cpus": 1,
+      "kafka_memory_mib": 512,
+      "postgres_cpus": 1,
+      "postgres_memory_mib": 256,
+      "worker": "host process; no additional CPU/memory limit"
+    },
+    "batching": {
+      "destination_records_per_transaction": 1,
+      "offset_commit_records": 1,
+      "auto_commit": false,
+      "auto_offset_store": false,
+      "producer_batch_num_messages": 1,
+      "producer_linger_ms": 0,
+      "producer_acks": "all"
+    },
+    "notes": [
+      "single-broker RF=1/minISR=1 lab, not broker-loss durability evidence",
+      "TLS verified for PostgreSQL; loopback plaintext Kafka",
+      "structured JSON event logging enabled",
+      "management HTTP callbacks disabled in this lab",
+      "Container resources are host-visible process-tree CPU and summed RSS; RSS counts shared pages more than once. Docker stats is not used because rootless/no-cgroup daemons may report shared host usage."
+    ],
+    "docker_warnings": [
+      "WARNING: Running in rootless-mode without cgroups. Systemd is required to enable cgroups in rootless-mode."
+    ],
+    "container_cgroup_limits_enforced": false,
+    "cgroup_cpu.max": "200000 100000",
+    "cgroup_memory.max": "8589934592",
+    "tested_source_sha256": "7456f3a89aa2954ef4cb6400a9726f75dac02dcc4d0d442844df4a8fd0fdc8b3",
+    "python_environment": {
+      "certifi": "2026.11.20",
+      "python-dateutil": "2.9.0.post0",
+      "psycopg2-binary": "2.9.9",
+      "idna": "3.20",
+      "pip": "25.0.1",
+      "urllib3": "2.8.0",
+      "charset-normalizer": "3.5.2",
+      "requests": "2.32.3",
+      "confluent-kafka": "2.5.3",
+      "psutil": "7.0.0",
+      "six": "1.17.0"
+    },
+    "postgres_version": "PostgreSQL 16.16 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit",
+    "docker_version": "29.9.2",
+    "image_ids": {
+      "kafka": {
+        "config_id": "sha256:ced4f6a04e376e58d1b5ace9dd1fdce0d38fe186d9a084e05d2dfd3b2f37bb88",
+        "repository_digests": [
+          "apache/kafka-native@sha256:37edf221890d67f9cfa0f540702b001ce4570157bd7875d35916f1bd670a2eee"
+        ]
+      },
+      "postgres": {
+        "config_id": "sha256:a3c40a6a77a9a545ed6d766860c45f82ab8bc254148266e56c4139f91beec635",
+        "repository_digests": [
+          "postgres@sha256:1d5b02d3a9941fbd52437db4107f8c52d6297dac553ca1e5c299ebb3756b4857"
+        ]
+      }
+    }
+  },
+  "scenarios": [
+    {
+      "scenario": "before_write",
+      "topic": "lab-before_write-3dc999c5ce",
+      "partitions": 1,
+      "consumer_group": "lab-3dc999c5ce",
+      "before_restart": {
+        "rows": 0,
+        "unique_business_ids": 0,
+        "business_effects": 0,
+        "ledger_entries": 0,
+        "duplicate_effects": 0
+      },
+      "offsets_before_restart": [
+        {
+          "partition": 0,
+          "committed": -1001,
+          "low": 0,
+          "high": 1,
+          "lag": 1,
+          "uncommitted": true
+        }
+      ],
+      "final": {
+        "rows": 1,
+        "unique_business_ids": 1,
+        "business_effects": 1,
+        "ledger_entries": 1,
+        "duplicate_effects": 0
+      },
+      "replay_outcomes": [
+        "applied"
+      ]
+    },
+    {
+      "scenario": "after_write_before_commit",
+      "topic": "lab-after_write_before_commit-7a915de418",
+      "partitions": 1,
+      "consumer_group": "lab-7a915de418",
+      "before_restart": {
+        "rows": 1,
+        "unique_business_ids": 1,
+        "business_effects": 1,
+        "ledger_entries": 1,
+        "duplicate_effects": 0
+      },
+      "offsets_before_restart": [
+        {
+          "partition": 0,
+          "committed": -1001,
+          "low": 0,
+          "high": 1,
+          "lag": 1,
+          "uncommitted": true
+        }
+      ],
+      "final": {
+        "rows": 1,
+        "unique_business_ids": 1,
+        "business_effects": 1,
+        "ledger_entries": 1,
+        "duplicate_effects": 0
+      },
+      "replay_outcomes": [
+        "duplicate"
+      ]
+    },
+    {
+      "scenario": "invalid_record",
+      "topic": "lab-invalid-594622cd4b",
+      "partitions": 1,
+      "consumer_group": "lab-594622cd4b",
+      "paused": {
+        "event": "record_paused",
+        "cluster": "isolated-delivery-lab",
+        "topic": "lab-invalid-594622cd4b",
+        "partition": 0,
+        "offset": 0,
+        "stage": "validation",
+        "attempts": 1,
+        "error_type": "JSONDecodeError",
+        "sqlstate": null,
+        "offsets_advanced": false,
+        "resume": "restart_worker",
+        "monotonic": 29799.178251057,
+        "wall_time_ns": 1795364335351932554
+      },
+      "offsets": [
+        {
+          "partition": 0,
+          "committed": -1001,
+          "low": 0,
+          "high": 1,
+          "lag": 1,
+          "uncommitted": true
+        }
+      ],
+      "final": {
+        "rows": 0,
+        "unique_business_ids": 0,
+        "business_effects": 0,
+        "ledger_entries": 0,
+        "duplicate_effects": 0
+      }
+    },
+    {
+      "scenario": "dead_letter_unavailable",
+      "topic": "lab-dlq-unavailable-d516ea03ae",
+      "partitions": 1,
+      "consumer_group": "lab-d516ea03ae",
+      "paused": {
+        "event": "record_paused",
+        "cluster": "isolated-delivery-lab",
+        "topic": "lab-dlq-unavailable-d516ea03ae",
+        "partition": 0,
+        "offset": 0,
+        "stage": "dead_letter",
+        "attempts": 3,
+        "error_type": "DeadLetterUnavailable",
+        "sqlstate": null,
+        "offsets_advanced": false,
+        "resume": "restart_worker",
+        "monotonic": 29805.867781507,
+        "wall_time_ns": 1795364342041462844
+      },
+      "offsets": [
+        {
+          "partition": 0,
+          "committed": -1001,
+          "low": 0,
+          "high": 1,
+          "lag": 1,
+          "uncommitted": true
+        }
+      ],
+      "final": {
+        "rows": 0,
+        "unique_business_ids": 0,
+        "business_effects": 0,
+        "ledger_entries": 0,
+        "duplicate_effects": 0
+      }
+    },
+    {
+      "scenario": "dead_letter_acknowledged",
+      "topic": "lab-dlq-ack-4e1af00a6f",
+      "partitions": 1,
+      "consumer_group": "lab-4e1af00a6f",
+      "source_offset": 1,
+      "dlq": "lab-dlq-be40b06c66",
+      "event_id": "c08b4317ca1fe61dae129fc7714f33cb4663b69a484fe2a45e0f160fd1466e74",
+      "raw_payload_roundtrip": true
+    },
+    {
+      "scenario": "manual_replay",
+      "topic": "lab-manual-cf782e1f8c",
+      "partitions": 1,
+      "consumer_group": "lab-cf782e1f8c",
+      "recovered_selected_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "source_group_unchanged_during_replay": true,
+      "final": {
+        "rows": 8,
+        "unique_business_ids": 8,
+        "business_effects": 8,
+        "ledger_entries": 8,
+        "duplicate_effects": 0
+      }
+    },
+    {
+      "scenario": "consumer_rebalance",
+      "topic": "lab-rebalance-04946517a4",
+      "partitions": 3,
+      "consumer_group": "lab-04946517a4",
+      "records_at_second_assignment": 131,
+      "final": {
+        "rows": 600,
+        "unique_business_ids": 600,
+        "business_effects": 600,
+        "ledger_entries": 600,
+        "duplicate_effects": 0
+      },
+      "assignment_events": [
+        {
+          "event": "assigned",
+          "partitions": [
+            0,
+            1,
+            2
+          ],
+          "epoch": 1,
+          "monotonic": 29823.56635466,
+          "wall_time_ns": 1795364359740042767
+        },
+        {
+          "event": "revoked",
+          "partitions": [
+            0,
+            1,
+            2
+          ],
+          "epoch": 2,
+          "monotonic": 29826.570196878,
+          "wall_time_ns": 1795364362743878216
+        },
+        {
+          "event": "assigned",
+          "partitions": [
+            0,
+            1
+          ],
+          "epoch": 3,
+          "monotonic": 29826.575106054,
+          "wall_time_ns": 1795364362748787451
+        },
+        {
+          "event": "revoked",
+          "partitions": [
+            0,
+            1
+          ],
+          "epoch": 4,
+          "monotonic": 29835.275103327,
+          "wall_time_ns": 1795364371448785255
+        },
+        {
+          "event": "assigned",
+          "partitions": [
+            2
+          ],
+          "epoch": 1,
+          "monotonic": 29826.572989517,
+          "wall_time_ns": 1795364362746673568
+        },
+        {
+          "event": "revoked",
+          "partitions": [
+            2
+          ],
+          "epoch": 2,
+          "monotonic": 29835.520646415,
+          "wall_time_ns": 1795364371694328252
+        }
+      ]
+    },
+    {
+      "scenario": "destination_unavailable_and_recovery",
+      "topic": "lab-outage-5c92fdeb81",
+      "partitions": 1,
+      "consumer_group": "lab-5c92fdeb81",
+      "timeline": [
+        {
+          "event": "processing",
+          "monotonic": 29836.87395749,
+          "counts": {
+            "rows": 5,
+            "unique_business_ids": 5,
+            "business_effects": 5,
+            "ledger_entries": 5,
+            "duplicate_effects": 0
+          }
+        },
+        {
+          "event": "destination_stopped",
+          "monotonic": 29837.114347691
+        },
+        {
+          "event": "paused",
+          "monotonic": 29837.442044385,
+          "offsets": [
+            {
+              "partition": 0,
+              "committed": 5,
+              "low": 0,
+              "high": 15,
+              "lag": 10,
+              "uncommitted": false
+            }
+          ],
+          "attempts": 3
+        },
+        {
+          "event": "destination_restored",
+          "monotonic": 29838.689540325
+        },
+        {
+          "event": "operator_restarts_worker",
+          "monotonic": 29839.958355247
+        },
+        {
+          "event": "recovered",
+          "monotonic": 29841.167455478,
+          "counts": {
+            "rows": 15,
+            "unique_business_ids": 15,
+            "business_effects": 15,
+            "ledger_entries": 15,
+            "duplicate_effects": 0
+          },
+          "lag": 0
+        }
+      ],
+      "recovery_seconds": 2.477913279999484,
+      "final": {
+        "rows": 15,
+        "unique_business_ids": 15,
+        "business_effects": 15,
+        "ledger_entries": 15,
+        "duplicate_effects": 0
+      }
+    },
+    {
+      "scenario": "steady_state_benchmark",
+      "offered_records_per_second": 200,
+      "requested_duration_seconds": 20,
+      "source_records": 4000,
+      "payload_bytes": {
+        "min": 512,
+        "max": 512
+      },
+      "partitions": 3,
+      "workers": 1,
+      "elapsed_until_committed_seconds": 20.33648266000091,
+      "committed_records_per_second": 196.69084702968104,
+      "end_to_end_commit_latency_ms": {
+        "p50": 3.071044921875,
+        "p95": 13.408203125,
+        "max": 71.64794921875
+      },
+      "peak_observed_consumer_lag": 3,
+      "final_consumer_lag": 0,
+      "records_with_error": 0,
+      "record_error_rate": 0.0,
+      "error_attempts": 0,
+      "worker_resources": {
+        "peak_sampled_cpu_percent_one_core": 26.5,
+        "mean_cpu_percent_one_core": 11.30972370420666,
+        "peak_sampled_rss_mib": 26.09375
+      },
+      "containers": [
+        {
+          "service": "kafka",
+          "peak_sampled_cpu_percent_one_core": 19.130690712958597,
+          "mean_sampled_cpu_percent_one_core": 17.478798191001307,
+          "peak_sampled_summed_rss_mib": 331.20703125,
+          "samples": 6
+        },
+        {
+          "service": "postgres",
+          "peak_sampled_cpu_percent_one_core": 14.483180073312429,
+          "mean_sampled_cpu_percent_one_core": 11.735528804012358,
+          "peak_sampled_summed_rss_mib": 102.48828125,
+          "samples": 6
+        }
+      ],
+      "final": {
+        "rows": 4000,
+        "unique_business_ids": 4000,
+        "business_effects": 4000,
+        "ledger_entries": 4000,
+        "duplicate_effects": 0
+      },
+      "measurement": "offered-load test, not maximum sustainable throughput",
+      "topic": "lab-benchmark-294e2ac7aa"
+    }
+  ]
+}
