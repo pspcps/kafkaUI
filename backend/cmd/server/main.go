@@ -140,6 +140,11 @@ func syncJobStatuses(k8sClient *k8s.Client, jobRepo *db.JobRepo) {
 				log.Printf("syncJobStatuses: health check for %s: %v", j.ID, err)
 				continue
 			}
+			// A healthy Pod may intentionally be holding a failed record. Preserve
+			// its visible delivery pause until an operator explicitly resumes it.
+			if j.Status == "paused" && j.LastError != "" && status == "running" {
+				continue
+			}
 			// Only write when something changed.
 			if status == j.Status && reason == "" {
 				continue

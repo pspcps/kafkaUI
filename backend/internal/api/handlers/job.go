@@ -191,11 +191,11 @@ func (h *JobHandler) UpdateStatus(c *gin.Context) {
 
 	case "resume":
 		replicas := int32(job.ConsumerCount)
-		if err := h.k8s.ScaleDeployment(context.Background(), job.K8sDeploymentName, replicas); err != nil {
+		if err := h.k8s.ResumeDeployment(context.Background(), job.K8sDeploymentName, replicas); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		h.jobs.UpdateStatus(job.ID, "running", job.K8sDeploymentName) //nolint:errcheck
+		h.jobs.UpdateStatusWithError(job.ID, "running", job.K8sDeploymentName, "") //nolint:errcheck
 		c.JSON(http.StatusOK, gin.H{"status": "running"})
 
 	default:

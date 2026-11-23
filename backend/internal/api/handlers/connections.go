@@ -30,6 +30,9 @@ func validateDestination(cfg db.DestinationConfig, destinationType string) (*con
 			return nil, &destinationError{"Use a simple database identifier: letters, digits and underscores, starting with a letter or underscore"}
 		}
 	}
+	if destinationType != "postgresql" {
+		return nil, &destinationError{"Replay-safe delivery currently supports PostgreSQL only; this destination is disabled until transactional deduplication is implemented"}
+	}
 	return connections.Resolve(cfg.ConnectionID, destinationType)
 }
 

@@ -70,7 +70,10 @@ def parse_value(raw, field_type: str):
     if field_type == "boolean":
         if isinstance(raw, bool):
             return raw
-        return str(raw).lower() in ("true", "1", "yes")
+        value = str(raw).lower()
+        if value not in ('true', '1', 'yes', 'false', '0', 'no'):
+            raise ValueError('Invalid boolean mapping')
+        return value in ('true', '1', 'yes')
     if field_type == "timestamp":
         if isinstance(raw, datetime):
             return raw

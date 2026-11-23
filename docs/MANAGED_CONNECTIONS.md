@@ -8,6 +8,10 @@ Mount an operator-owned JSON file into the backend and set `CONNECTION_PROFILES_
 
 This file must not contain static passwords, cloud access keys or tokens. Profiles are an allowlist, not an invitation for users to supply arbitrary secret paths. No cloud accounts, secret stores, CSI drivers, service accounts or policies are provisioned by the app or by the hosted demo.
 
+## Credential paths and enabled destinations
+
+The delivery-contract change enables replication **only to PostgreSQL**. MySQL, MongoDB and SQL Server adapters are disabled until transactional deduplication and real integration tests exist. Provider/credential configuration below describes the connection mechanisms; it is not a claim that every destination adapter is enabled. See [delivery and migration rules](DELIVERY_CONTRACT.md).
+
 ## Supported paths
 
 | Provider | Credential resolution | Operator prerequisites |
@@ -19,7 +23,7 @@ This file must not contain static passwords, cloud access keys or tokens. Profil
 
 `credentials.json` is a UTF-8 JSON object containing `host`, `database`, `username`, `password`, and optional `port`. Never put its actual contents in this repository, a job request, screenshot, browser storage, or ticket. Workers read the fixed path `/var/run/kafkaui-credentials/credentials.json`; a job cannot override that path. The CSI provider owns upstream authentication, lease renewal and file rotation. Reconnects reread the mounted file. Existing database sessions can remain valid until closed; this is not instant revocation.
 
-For PostgreSQL/MySQL, configure `caSecretName`; the Secret must have key `ca.pem` containing the CA bundle. It mounts at `/var/run/kafkaui-ca/ca.pem`. PostgreSQL uses `verify-full`; MySQL verifies both certificate and hostname. RDS IAM tokens are generated again when a new connection is established. This does not change the worker's delivery guarantees or implement full connection-failure recovery.
+For PostgreSQL/MySQL, configure `caSecretName`; the Secret must have key `ca.pem` containing the CA bundle. It mounts at `/var/run/kafkaui-ca/ca.pem`. PostgreSQL uses `verify-full`; MySQL verifies both certificate and hostname. RDS IAM tokens are generated again when a new connection is established. Credential integration is separate from delivery behavior; see [the delivery contract](DELIVERY_CONTRACT.md) for bounded retry and restart semantics.
 
 MongoDB uses verified TLS and optional custom CA. SQL Server now uses encryption with certificate verification; its CA must be trusted by the worker OS/ODBC installation. The current worker image still needs the SQL Server ODBC driver installed separately. These requirements must be validated for your exact destination before enabling a profile.
 
@@ -34,7 +38,7 @@ All worker deployments also reference `kafbat-worker-api` (key `token`) and **`k
 5. Verify real destination writes, TLS hostname failures, denied identity/secret access, token refresh on reconnect and secret rotation. Confirm no passwords appear in job API responses or callback logs.
 6. After verification, remove old credentials from management records/backups according to policy, and revoke/rotate previously stored passwords. Redaction alone does not remove historical exposure.
 
-The Vercel preview shows sample profile choices and simulated job actions only. It never obtains real secrets or assumes a real cloud role. Unit tests cover allowlisting, redaction, identifier rejection, mount configuration, rotation reads and IAM token calls. No live AWS/Vault/Kubernetes/database integration was performed in this task. Tenant scoping, audit trails, SSO/session revocation and per-job callback identity remain enterprise prerequisites.
+The Vercel preview shows sample profile choices and simulated job actions only. It never obtains real secrets or assumes a real cloud role. Unit tests cover allowlisting, redaction, identifier rejection, mount configuration, rotation reads and IAM token calls. The earlier managed-connections change did not exercise live AWS/Vault/Kubernetes/database integration. The subsequent [delivery lab](DELIVERY_LAB.md) now exercises real local Kafka and PostgreSQL; cloud identities and a production Kubernetes rollout remain unverified. Tenant scoping, audit trails, SSO/session revocation and per-job callback identity remain enterprise prerequisites.
 
 ## Other verification limits
 
